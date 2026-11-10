@@ -1,0 +1,349 @@
+[
+{
+"id": "first_returns",
+"name": "First Returns",
+"text": "Return 5 of 8 easy balls.",
+"feed": "machine",
+"goal": {
+"type": "shots",
+"need": 5,
+"balls": 8
+},
+"machine": {
+"speed": 0.15,
+"interval": 1.3
+}
+},
+{
+"id": "deep_drive",
+"name": "Deep Drive",
+"text": "Land 4 of 10 in the deep zone.",
+"feed": "machine",
+"goal": {
+"type": "shots",
+"need": 4,
+"balls": 10,
+"zone": [
+-0.77,
+0.77,
+0.9,
+1.38
+]
+},
+"machine": {
+"speed": 0.25,
+"interval": 1.2
+}
+},
+{
+"id": "left_corner",
+"name": "Left Corner",
+"text": "Land 4 of 10 in the left zone.",
+"feed": "machine",
+"goal": {
+"type": "shots",
+"need": 4,
+"balls": 10,
+"zone": [
+-0.77,
+-0.15,
+0.45,
+1.38
+]
+},
+"machine": {
+"speed": 0.25,
+"interval": 1.2
+}
+},
+{
+"id": "right_corner",
+"name": "Right Corner",
+"text": "Land 4 of 10 in the right zone.",
+"feed": "machine",
+"goal": {
+"type": "shots",
+"need": 4,
+"balls": 10,
+"zone": [
+0.15,
+0.77,
+0.45,
+1.38
+]
+},
+"machine": {
+"speed": 0.25,
+"interval": 1.2
+}
+},
+{
+"id": "power_up",
+"name": "Power Up",
+"text": "Land 3 of 10 at 40 km/h or faster.",
+"feed": "machine",
+"goal": {
+"type": "shots",
+"need": 3,
+"balls": 10,
+"min_speed": 11.1
+},
+"machine": {
+"speed": 0.3,
+"top": 0.2,
+"interval": 1.2
+}
+},
+{
+"id": "chop_shop",
+"name": "Chop Shop",
+"text": "Return 4 of 10 topspin balls with backspin (swipe down).",
+"feed": "machine",
+"goal": {
+"type": "shots",
+"need": 4,
+"balls": 10,
+"max_top": -40
+},
+"machine": {
+"speed": 0.4,
+"top": 0.6,
+"interval": 1.3
+}
+},
+{
+"id": "lift_it",
+"name": "Lift It",
+"text": "Loop 4 of 10 heavy backspin balls with strong topspin.",
+"feed": "machine",
+"goal": {
+"type": "shots",
+"need": 4,
+"balls": 10,
+"min_top": 70
+},
+"machine": {
+"speed": 0.2,
+"top": -0.9,
+"interval": 1.4
+}
+},
+{
+"id": "sidewinder",
+"name": "Sidewinder",
+"text": "Curve your swipe: land 3 of 10 with sidespin.",
+"feed": "machine",
+"goal": {
+"type": "shots",
+"need": 3,
+"balls": 10,
+"min_side": 35
+},
+"machine": {
+"speed": 0.25,
+"interval": 1.3
+}
+},
+{
+"id": "short_game",
+"name": "Short Game",
+"text": "Drop 3 of 10 short, into the zone by the net.",
+"feed": "machine",
+"goal": {
+"type": "shots",
+"need": 3,
+"balls": 10,
+"zone": [
+-0.77,
+0.77,
+0,
+0.6
+]
+},
+"machine": {
+"speed": 0.15,
+"top": -0.5,
+"depth": 0.2,
+"interval": 1.4
+}
+},
+{
+"id": "random_feed",
+"name": "Scramble",
+"text": "Return 6 in a row from random placement.",
+"feed": "machine",
+"goal": {
+"type": "shots",
+"need": 6,
+"balls": 16,
+"streak": true
+},
+"machine": {
+"speed": 0.45,
+"top": 0.3,
+"random": true,
+"interval": 1.1
+}
+},
+{
+"id": "speed_demon",
+"name": "Speed Demon",
+"text": "Return 5 of 10 very fast topspin balls.",
+"feed": "machine",
+"goal": {
+"type": "shots",
+"need": 5,
+"balls": 10
+},
+"machine": {
+"speed": 0.95,
+"top": 0.7,
+"random": true,
+"depth": 0.85,
+"interval": 1.2
+}
+},
+{
+"id": "serve_in",
+"name": "Serve It In",
+"text": "Land 5 of 6 serves.",
+"feed": "serve",
+"goal": {
+"type": "shots",
+"need": 5,
+"balls": 6
+}
+},
+{
+"id": "short_serve",
+"name": "Double Bounce",
+"text": "Serve so short it bounces twice on the far side. 3 of 8.",
+"feed": "serve",
+"goal": {
+"type": "shots",
+"need": 3,
+"balls": 8,
+"double": true
+}
+},
+{
+"id": "long_bomb",
+"name": "Long Bomb",
+"text": "Serve fast and deep into the zone. 3 of 8.",
+"feed": "serve",
+"goal": {
+"type": "shots",
+"need": 3,
+"balls": 8,
+"min_speed": 6.0,
+"zone": [
+-0.77,
+0.77,
+0.95,
+1.38
+]
+}
+},
+{
+"id": "corner_serve",
+"name": "Corner Pocket",
+"text": "Serve into the corner zone. 3 of 10.",
+"feed": "serve",
+"goal": {
+"type": "shots",
+"need": 3,
+"balls": 10,
+"zone": [
+0.25,
+0.77,
+0.7,
+1.38
+]
+}
+},
+{
+"id": "ghost",
+"name": "Ghost Whisperer",
+"text": "Serve with so much backspin the second bounce comes back toward the net. 2 of 10.",
+"feed": "serve",
+"goal": {
+"type": "shots",
+"need": 2,
+"balls": 10,
+"back": true
+}
+},
+{
+"id": "rally8",
+"name": "Rally Master",
+"text": "Keep one rally going for 8 shots against Tomasz.",
+"feed": "match",
+"goal": {
+"type": "rally",
+"hits": 8,
+"need": 1,
+"balls": 15
+},
+"match": {
+"bot": "tomasz",
+"level": 1,
+"best_of": 1,
+"target": 99
+}
+},
+{
+"id": "ace_hunter",
+"name": "Ace Hunter",
+"text": "Serve 2 aces against Milo within 20 points.",
+"feed": "match",
+"goal": {
+"type": "aces",
+"need": 2,
+"balls": 20
+},
+"match": {
+"bot": "milo",
+"level": 0,
+"best_of": 1,
+"target": 99
+}
+},
+{
+"id": "comeback",
+"name": "Comeback Kid",
+"text": "Win the game from 4-9 down against Rhea.",
+"feed": "match",
+"goal": {
+"type": "win",
+"need": 1
+},
+"match": {
+"bot": "rhea",
+"level": 1,
+"best_of": 1,
+"start": [
+4,
+9
+]
+}
+},
+{
+"id": "legend_deuce",
+"name": "Legend's Deuce",
+"text": "Win from 10-10 against Nova Kim on Legend.",
+"feed": "match",
+"goal": {
+"type": "win",
+"need": 1
+},
+"match": {
+"bot": "nova",
+"level": 5,
+"best_of": 1,
+"start": [
+10,
+10
+]
+}
+}
+]

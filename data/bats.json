@@ -1,0 +1,252 @@
+[
+{
+"id": "starter_ply",
+"name": "Starter Ply",
+"speed": 0.35,
+"spin": 0.35,
+"control": 0.9,
+"fh": "c0392b",
+"bh": "222222",
+"handle": "c89a5b"
+},
+{
+"id": "soft_touch",
+"name": "Soft Touch",
+"speed": 0.3,
+"spin": 0.5,
+"control": 0.95,
+"fh": "d35454",
+"bh": "2b2b2b",
+"handle": "c89a5b"
+},
+{
+"id": "allround_classic",
+"name": "Allround Classic",
+"speed": 0.55,
+"spin": 0.55,
+"control": 0.8,
+"fh": "cc2936",
+"bh": "1a1a1a",
+"handle": "c89a5b"
+},
+{
+"id": "cloud_def",
+"name": "Cloud Defender",
+"speed": 0.3,
+"spin": 0.65,
+"control": 0.9,
+"fh": "b03a48",
+"bh": "1c1c1c",
+"handle": "c89a5b"
+},
+{
+"id": "wall_block",
+"name": "Wall Blocker",
+"speed": 0.5,
+"spin": 0.35,
+"control": 0.92,
+"fh": "a93226",
+"bh": "111111",
+"handle": "c89a5b"
+},
+{
+"id": "loop_fx",
+"name": "Loop FX",
+"speed": 0.6,
+"spin": 0.8,
+"control": 0.62,
+"fh": "e63946",
+"bh": "151515",
+"handle": "c89a5b"
+},
+{
+"id": "chop_master",
+"name": "Chop Master",
+"speed": 0.35,
+"spin": 0.9,
+"control": 0.8,
+"fh": "9d0208",
+"bh": "202020",
+"handle": "c89a5b"
+},
+{
+"id": "carbon_strike",
+"name": "Carbon Strike",
+"speed": 0.88,
+"spin": 0.6,
+"control": 0.5,
+"fh": "ff3b30",
+"bh": "0d0d0d",
+"handle": "c89a5b"
+},
+{
+"id": "pen_flash",
+"name": "Pen Flash",
+"speed": 0.82,
+"spin": 0.55,
+"control": 0.58,
+"fh": "e5383b",
+"bh": "101010",
+"handle": "c89a5b"
+},
+{
+"id": "spin_wizard",
+"name": "Spin Wizard",
+"speed": 0.5,
+"spin": 0.98,
+"control": 0.6,
+"fh": "d00000",
+"bh": "1b1b1b",
+"handle": "c89a5b"
+},
+{
+"id": "tacky_dragon",
+"name": "Tacky Dragon",
+"speed": 0.58,
+"spin": 0.92,
+"control": 0.62,
+"fh": "c1121f",
+"bh": "161616",
+"handle": "c89a5b"
+},
+{
+"id": "quick_counter",
+"name": "Quick Counter",
+"speed": 0.78,
+"spin": 0.5,
+"control": 0.72,
+"fh": "f94144",
+"bh": "121212",
+"handle": "c89a5b"
+},
+{
+"id": "anti_fortress",
+"name": "Anti Fortress",
+"speed": 0.4,
+"spin": 0.25,
+"control": 0.98,
+"fh": "7f1d1d",
+"bh": "262626",
+"handle": "c89a5b"
+},
+{
+"id": "thunder_carbon",
+"name": "Thunder Carbon",
+"speed": 0.97,
+"spin": 0.72,
+"control": 0.38,
+"fh": "ff1f1f",
+"bh": "050505",
+"handle": "c89a5b"
+},
+{
+"id": "legend_pro",
+"name": "Legend Pro",
+"speed": 0.85,
+"spin": 0.85,
+"control": 0.6,
+"fh": "e11d48",
+"bh": "0a0a0a",
+"handle": "c89a5b"
+},
+{
+"id": "balsa_feather",
+"name": "Balsa Feather",
+"speed": 0.7,
+"spin": 0.45,
+"control": 0.78,
+"fh": "e76f51",
+"bh": "20201f",
+"handle": "c89a5b"
+},
+{
+"id": "hinoki_one",
+"name": "Hinoki One",
+"speed": 0.75,
+"spin": 0.65,
+"control": 0.68,
+"fh": "bc4749",
+"bh": "18120e",
+"handle": "c89a5b"
+},
+{
+"id": "zylon_edge",
+"name": "Zylon Edge",
+"speed": 0.9,
+"spin": 0.68,
+"control": 0.45,
+"fh": "ef233c",
+"bh": "0b090a",
+"handle": "c89a5b"
+},
+{
+"id": "control_plus",
+"name": "Control Plus",
+"speed": 0.45,
+"spin": 0.6,
+"control": 0.9,
+"fh": "c44536",
+"bh": "1d1d1d",
+"handle": "c89a5b"
+},
+{
+"id": "pips_out_snap",
+"name": "Pips-Out Snap",
+"speed": 0.8,
+"spin": 0.3,
+"control": 0.75,
+"fh": "f25c54",
+"bh": "131313",
+"handle": "c89a5b"
+},
+{
+"id": "long_pips_riddle",
+"name": "Long Pips Riddle",
+"speed": 0.32,
+"spin": 0.2,
+"control": 0.88,
+"fh": "8d0801",
+"bh": "2a2a2a",
+"handle": "c89a5b"
+},
+{
+"id": "arc_seven",
+"name": "Arc Seven",
+"speed": 0.68,
+"spin": 0.78,
+"control": 0.66,
+"fh": "da1e37",
+"bh": "141414",
+"handle": "c89a5b"
+},
+{
+"id": "kevlar_guard",
+"name": "Kevlar Guard",
+"speed": 0.62,
+"spin": 0.58,
+"control": 0.82,
+"fh": "b21e35",
+"bh": "191919",
+"handle": "c89a5b"
+},
+{
+"id": "neon_blitz",
+"name": "Neon Blitz",
+"speed": 0.93,
+"spin": 0.55,
+"control": 0.48,
+"fh": "ff006e",
+"bh": "001219",
+"handle": "c89a5b"
+},
+{
+"id": "retro_hardbat",
+"name": "Retro Hardbat",
+"speed": 0.48,
+"spin": 0.15,
+"control": 0.85,
+"fh": "3a86ff",
+"bh": "6c584c",
+"handle": "c89a5b"
+}
+]

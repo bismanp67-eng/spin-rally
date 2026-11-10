@@ -1,0 +1,50 @@
+[
+{
+"id": "white",
+"name": "Match White",
+"color": "ffffff",
+"trail": "ffffff"
+},
+{
+"id": "orange",
+"name": "Classic Orange",
+"color": "ff9a1f",
+"trail": "ffb347"
+},
+{
+"id": "yellow",
+"name": "Training Yellow",
+"color": "ffe600",
+"trail": "fff27a"
+},
+{
+"id": "pink",
+"name": "Hot Pink",
+"color": "ff4fa3",
+"trail": "ff9fcf"
+},
+{
+"id": "lime",
+"name": "Lime",
+"color": "a6ff00",
+"trail": "d4ff80"
+},
+{
+"id": "sky",
+"name": "Sky Blue",
+"color": "5ad1ff",
+"trail": "b5ebff"
+},
+{
+"id": "gold",
+"name": "Gold Star",
+"color": "ffc300",
+"trail": "ffe58a"
+},
+{
+"id": "mono",
+"name": "Two-Tone",
+"color": "ffffff",
+"trail": "ff3b30"
+}
+]
