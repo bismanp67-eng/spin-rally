@@ -49,6 +49,7 @@ var toss_T := 0.0
 var toss_strike := {}
 var toss_side := 0
 var wait_delay := 1.2
+var serve_swing := Vector3.ZERO
 # input
 var touch_id := -1
 var touch_pos := Vector2.ZERO
@@ -235,6 +236,7 @@ func begin_toss(side: int, p: Vector3, sv: Dictionary, strike: Dictionary) -> vo
 	toss_T = 2.0 * toss_v0 / P.G
 	toss_t = 0.0
 	toss_strike = strike
+	serve_swing = Vector3(sv.swing[0], sv.swing[1], sv.swing[2])
 	state = S_TOSS
 	serve_b.visible = false
 	if side == 1:
@@ -349,7 +351,8 @@ func _physics_process(dt: float) -> void:
 func _on_ball_event(ev: Dictionary) -> void:
 	match ev.t:
 		"table":
-			Sfx.bounce(table_def.surface, absf(ball.vel.y), ball.spin.length())
+			if absf(ball.vel.y) > 0.3:
+				Sfx.bounce(table_def.surface, absf(ball.vel.y), ball.spin.length())
 			if ev.edge and state == S_RALLY:
 				flash("EDGE!", 0.9, Color(1, 0.9, 0.3))
 		"net", "cord":
@@ -357,7 +360,8 @@ func _on_ball_event(ev: Dictionary) -> void:
 			if ev.t == "cord" and state == S_RALLY and not ref.is_serve:
 				flash("NET CORD", 0.8, Color(1, 0.9, 0.3))
 		"floor":
-			Sfx.play("floor", 1.0, 0.5)
+			if absf(ball.vel.y) > 0.3:
+				Sfx.play("floor", 1.0, 0.5)
 	if state != S_RALLY:
 		return
 	var res: Dictionary = ref.on_event(ev)
@@ -452,7 +456,8 @@ func _after_point() -> void:
 		replay_i = maxf(0.0, frames.size() - 330.0)
 		me_n.visible = true
 		bat_n.visible = false
-		flash("REPLAY", 3.0, Color(1, 1, 1, 0.8))
+		flash("REPLAY", 8.0, Color(1, 1, 1, 0.8))
+		sub_flash("tap to skip", UI.DIM)
 		return
 	replayed = false
 	match pending:
@@ -474,6 +479,9 @@ func _after_point() -> void:
 			next_point()
 
 func _end_replay() -> void:
+	msg_t = 0.0
+	msg_l.modulate.a = 0.0
+	sub_l.text = ""
 	me_n.visible = false
 	bat_n.visible = true
 	state = S_OVER
@@ -658,6 +666,10 @@ func _update_bat(dt: float) -> void:
 	if incoming and ball.pos.z > 0.4:
 		ty = clampf(ball.pos.y, P.TABLE_Y - 0.2, P.TABLE_Y + 0.9)
 	bat_pos = bat_pos.lerp(Vector3(clampf(tx, -1.25, 1.25), ty, tz), minf(1.0, dt * 22.0))
+	if state == S_TOSS and toss_side == 0:
+		# serve-specific wind-up: the bat travels along the serve's swing path into the ball
+		var k := 1.0 - toss_t / toss_T
+		bat_pos = toss_p - Vector3(serve_swing.x * hand, serve_swing.y, serve_swing.z) * k * 0.7 + Vector3(0, 0, 0.05)
 
 func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventScreenTouch:
@@ -726,18 +738,20 @@ func _process(dt: float) -> void:
 		me_n.get_meta("arm").rotation = Vector3(-1.0 - sin(psw * PI) * 1.2, 0, -hand * 0.3)
 	if opp_n:
 		opp_n.position = Vector3(ox, 0, -(P.HALF_L + bot.st.standoff + 0.3))
-		opp_n.get_meta("arm").rotation = Vector3(-1.0 - sin(osw * PI) * 1.3, 0, bot.hand * 0.3)
+		var wind := (1.0 - toss_t / maxf(toss_T, 0.01)) if state == S_TOSS and toss_side == 1 else 0.0
+		opp_n.get_meta("arm").rotation = Vector3(-1.0 - sin(osw * PI) * 1.3 - wind * (0.4 + absf(serve_swing.y)), 0, bot.hand * (0.3 + serve_swing.x * wind * 1.2))
 	cam_x = lerpf(cam_x, clampf(bp.x, -1.0, 1.0) * 0.16, minf(1.0, dt * 3.0))
 	var cp := Vector3(cam_x, 1.72, 3.25)
 	var look := Vector3(cam_x * 0.5, 0.98, -0.2)
 	if replay:
-		cp = Vector3(3.1, 1.55, 0.9)
-		look = Vector3(0, 0.9, 0)
+		cp = Vector3(2.7, 2.7, 4.4)
+		look = Vector3(0.1, 0.85, -0.1)
 	elif DB.opt("fp_cam"):
 		cp = Vector3(bt.x * 0.5, 1.32, 2.5)
 		look = Vector3(bt.x * 0.2, 0.8, -0.8)
 	cam.position = cam.position.lerp(cp, minf(1.0, dt * (4.0 if replay else 8.0)))
 	cam.look_at(look)
+	cam.fov = 54.0 if replay else 46.0
 	if tip_t > 0.0:
 		tip_t -= dt
 		tip_l.modulate.a = clampf(tip_t * 3.0, 0.0, 1.0)

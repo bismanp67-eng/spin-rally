@@ -343,7 +343,9 @@ func scr_stats() -> void:
 	for r in rows:
 		var h := UI.hbox()
 		h.add_child(UI.expand(UI.label(r[0], 28, UI.DIM)))
-		h.add_child(UI.label(str(r[1]), 28))
+		var vl := UI.label(str(r[1]), 28)
+		vl.autowrap_mode = TextServer.AUTOWRAP_OFF
+		h.add_child(vl)
 		add(h)
 	add(UI.label("Head to head (won - lost)", 24, UI.DIM))
 	for b in DB.bots:

@@ -39,6 +39,10 @@ func _ready() -> void:
 		if d is Dictionary:
 			_merge(save, d)
 
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_CLOSE_REQUEST:
+		write()
+
 static func load_json(n: String) -> Array:
 	var path := "res://data/%s.json" % n
 	if not FileAccess.file_exists(path):
