@@ -38,6 +38,10 @@ func _ready() -> void:
 	apply_volumes()
 	music_task = WorkerThreadPool.add_task(_make_music)
 
+func _exit_tree() -> void:
+	if music_task >= 0:
+		WorkerThreadPool.wait_for_task_completion(music_task)
+
 func _player(bus: String) -> AudioStreamPlayer:
 	var p := AudioStreamPlayer.new()
 	p.bus = bus
@@ -103,6 +107,7 @@ func _make_music() -> void:
 	call_deferred("_music_ready", d)
 
 func _music_ready(d: PackedByteArray) -> void:
+	music_task = -1
 	music_p.stream = _wav(d, true)
 	music_p.play()
 

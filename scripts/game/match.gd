@@ -10,6 +10,7 @@ const World := preload("res://scripts/game/world.gd")
 const UI := preload("res://scripts/ui/ui.gd")
 signal finished(result: Dictionary)
 enum {S_WAIT, S_TOSS, S_RALLY, S_OVER, S_REPLAY, S_DONE}
+const P_ERR := 0.15  # player's base aim error (m) with perfect timing
 
 var cfg := {}
 var steps: Array = []
@@ -93,6 +94,8 @@ var radial: Control
 var pause_p: Control
 var end_p: Control
 var msg_t := 0.0
+var tip_l: Label
+var tip_t := 0.0
 
 func _ready() -> void:
 	rng.randomize()
@@ -112,23 +115,24 @@ func _ready() -> void:
 	add_child(World.table(table_def))
 	cam = Camera3D.new()
 	cam.keep_aspect = Camera3D.KEEP_WIDTH
-	cam.fov = 62.0
+	cam.fov = 46.0
 	cam.near = 0.1
 	cam.far = 120.0
 	add_child(cam)
 	var bdef: Dictionary = DB.find(DB.balls, DB.save.equip.ball)
 	var bcol: Color = Color(1.0, 0.92, 0.0) if DB.opt("colorblind") else World.col(bdef.color)
-	ball_n = World.ball(self, P.R * 1.25, Vector3.ZERO, World.mat(bcol, 0.5, 0.0, 0.35 if DB.opt("colorblind") else 0.1))
-	World.ball(ball_n, P.R * 0.55, Vector3(0, 0, P.R * 0.85), World.mat(Color(0.05, 0.05, 0.05) if DB.opt("colorblind") else World.col(bdef.trail).darkened(0.35), 0.6), 6)
-	var sh := World.cyl(self, 0.03, 0.03, 0.001, Vector3.ZERO, World.mat(Color.BLACK, 1.0, 0.0, 0.0, 0.4))
+	ball_n = World.ball(self, P.R * 1.6, Vector3.ZERO, World.mat(bcol, 0.5, 0.0, 0.35 if DB.opt("colorblind") else 0.1))
+	World.ball(ball_n, P.R * 0.7, Vector3(0, 0, P.R * 1.1), World.mat(Color(0.05, 0.05, 0.05) if DB.opt("colorblind") else World.col(bdef.trail).darkened(0.35), 0.6), 6)
+	var sh := World.cyl(self, 0.04, 0.04, 0.001, Vector3.ZERO, World.mat(Color.BLACK, 1.0, 0.0, 0.0, 0.4))
 	sh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 	shadow_n = sh
 	if DB.opt("trail"):
 		for i in 8:
-			var t := World.ball(self, P.R * (1.1 - i * 0.1), Vector3(0, -5, 0), World.mat(World.col(bdef.trail), 0.6, 0.0, 0.3, 0.45 - i * 0.05), 6)
+			var t := World.ball(self, P.R * (1.45 - i * 0.14), Vector3(0, -5, 0), World.mat(World.col(bdef.trail), 0.6, 0.0, 0.3, 0.45 - i * 0.05), 6)
 			t.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			trail.append(t)
 	bat_n = World.bat(mybat)
+	bat_n.scale = Vector3.ONE * 1.5
 	add_child(bat_n)
 	me_n = World.character({skin = "e8b98f", shirt = "f25a4a", shorts = "1b1b2f", hair = "3b2a1a", hs = 0, acc = ""}, mybat, hand)
 	me_n.rotation.y = PI
@@ -234,7 +238,7 @@ func begin_toss(side: int, p: Vector3, sv: Dictionary, strike: Dictionary) -> vo
 	state = S_TOSS
 	serve_b.visible = false
 	if side == 1:
-		flash(sv.name, 1.0, UI.DIM)
+		sub_flash(sv.name, UI.DIM)
 
 func _strike(side: int, vel: Vector3, spin: Vector3) -> void:
 	ball.vel = vel
@@ -421,8 +425,6 @@ func _eval_goal(res: Dictionary) -> void:
 				and cur.top <= g.get("max_top", 999.0) and cur.side >= g.get("min_side", 0.0)
 			if okk and g.get("double", false):
 				okk = cur.has("second")
-			if okk and g.get("back", false):
-				okk = cur.has("second") and cur.second.z > cur.pos.z
 		"rally":
 			okk = ref.hits >= int(g.hits)
 		"points":
@@ -528,7 +530,7 @@ func _swipe_params() -> Dictionary:
 func _player_serve() -> void:
 	var sv: Dictionary = DB.find(DB.serves, DB.save.last.serve)
 	var sp := _swipe_params()
-	var depth := clampf(lerpf(sv.depth, sp.pw, 0.6), 0.0, 1.0)
+	var depth := clampf(lerpf(sv.depth, sp.pw, 0.75), 0.0, 1.0)
 	if sp.pw > 1.12:
 		depth = 1.3
 	var tgt := Vector3(clampf(tan(sp.ang) * 0.9, -0.68, 0.68), P.TABLE_Y, -lerpf(0.4, 1.2, depth))
@@ -581,12 +583,17 @@ func _player_try_hit() -> void:
 		read = 0.97 if top_in < -25.0 else (0.5 if top_in > 25.0 else read)
 	if pw > 1.0:
 		depth += (pw - 1.0) * 2.5
+	var tq := clampf(absf(ball.vel.y) / 3.0, 0.0, 1.0)
+	if tq < 0.2:
+		tip("PERFECT", Color(0.5, 1.0, 0.6))
+	elif tq > 0.55:
+		tip("EARLY" if ball.vel.y > 0.0 else "LATE", Color(1.0, 0.75, 0.4))
 	var tx := clampf(bp.x * 0.35 + tan(sp.ang) * 1.1, -P.HALF_W - 0.2, P.HALF_W + 0.2)
 	bat_fh = (bp.x - bat_pos.x + 0.15 * hand) * hand >= 0.0 if not assist else bp.x * hand >= -0.15
 	var sh: Dictionary = solver.strike({
 		p = bp, target = Vector3(tx, P.TABLE_Y, -depth), vh = vh, top = top, side = swipe_curve * 90.0 * bsp,
 		v_in = ball.vel, w_in = ball.spin, read = read,
-		err = (0.04 + 0.11 * pw * pw + (0.0 if assist else off * 0.15)) * bc,
+		err = P_ERR * bc * (0.6 + ball.vel.length() / 14.0 + vh / 22.0 + 1.2 * tq + (0.0 if assist else off * 0.7)),
 	}, rng)
 	var res: Dictionary = ref.on_hit(0)
 	_strike(0, sh.vel, sh.spin)
@@ -721,8 +728,8 @@ func _process(dt: float) -> void:
 		opp_n.position = Vector3(ox, 0, -(P.HALF_L + bot.st.standoff + 0.3))
 		opp_n.get_meta("arm").rotation = Vector3(-1.0 - sin(osw * PI) * 1.3, 0, bot.hand * 0.3)
 	cam_x = lerpf(cam_x, clampf(bp.x, -1.0, 1.0) * 0.16, minf(1.0, dt * 3.0))
-	var cp := Vector3(cam_x, 1.68, 3.2)
-	var look := Vector3(cam_x * 0.5, 0.72, -0.4)
+	var cp := Vector3(cam_x, 1.72, 3.25)
+	var look := Vector3(cam_x * 0.5, 0.98, -0.2)
 	if replay:
 		cp = Vector3(3.1, 1.55, 0.9)
 		look = Vector3(0, 0.9, 0)
@@ -731,6 +738,9 @@ func _process(dt: float) -> void:
 		look = Vector3(bt.x * 0.2, 0.8, -0.8)
 	cam.position = cam.position.lerp(cp, minf(1.0, dt * (4.0 if replay else 8.0)))
 	cam.look_at(look)
+	if tip_t > 0.0:
+		tip_t -= dt
+		tip_l.modulate.a = clampf(tip_t * 3.0, 0.0, 1.0)
 	if msg_t > 0.0:
 		msg_t -= dt
 		msg_l.modulate.a = clampf(msg_t * 3.0, 0.0, 1.0)
@@ -740,6 +750,11 @@ func flash(t: String, secs: float = 1.2, c: Color = UI.TEXT) -> void:
 	msg_l.text = t
 	msg_l.add_theme_color_override("font_color", c)
 	msg_t = secs
+
+func tip(t: String, c: Color) -> void:
+	tip_l.text = t
+	tip_l.add_theme_color_override("font_color", c)
+	tip_t = 0.7
 
 func sub_flash(t: String, c: Color) -> void:
 	sub_l.text = t
@@ -791,6 +806,14 @@ func _build_hud() -> void:
 	msg_l.add_theme_constant_override("outline_size", 14)
 	msg_l.modulate.a = 0.0
 	root.add_child(msg_l)
+	tip_l = UI.label("", 40, UI.TEXT, true)
+	tip_l.set_anchors_preset(Control.PRESET_HCENTER_WIDE)
+	tip_l.anchor_top = 0.66
+	tip_l.anchor_bottom = 0.66
+	tip_l.add_theme_color_override("font_outline_color", Color.BLACK)
+	tip_l.add_theme_constant_override("outline_size", 10)
+	tip_l.modulate.a = 0.0
+	root.add_child(tip_l)
 	pause_b = UI.button("II", func(): set_paused(true), Color(0, 0, 0, 0.45), 30, 76)
 	pause_b.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	pause_b.offset_left = -96

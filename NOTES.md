@@ -2,3 +2,11 @@
 - Portrait orientation, camera behind player (best for one-thumb swipes).
 - Godot 4.7.2 (latest stable), CI image barichello/godot-ci:4.7.2.
 - All visuals/UI/sounds are built in code; content lives in data/*.json.
+- Bots: 15 named characters (spec asked for 10) so a 16-player tournament bracket has unique opponents.
+- Players do not swap ends between games (camera stays behind you); server alternation follows ITTF.
+- Volley fault applies only while the ball is over your half of the table; early swipes within ~0.14 s of the bounce are treated as half-volleys.
+- Player accuracy depends on timing (hit near the top of the bounce = PERFECT), swipe power, incoming pace, and choosing the right stroke for the incoming spin (push backspin or loop it hard; do not push topspin).
+- Ghost serve nearly stops on the second bounce rather than rolling back to the net (friction model limit); the challenge was defined accordingly.
+- Tournament matches between bots are resolved by rating, not simulated ball by ball.
+- Balls and arenas are cosmetic; tables change bounce/friction slightly (glass and ice are slicker, concrete is deader).
+- Built and tested headless plus software-rendered screenshots only; it has never run on a physical phone, so touch feel and frame rate are unverified.

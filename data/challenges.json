@@ -264,13 +264,19 @@
 {
 "id": "ghost",
 "name": "Ghost Whisperer",
-"text": "Serve with so much backspin the second bounce comes back toward the net. 2 of 10.",
+"text": "Pick the Ghost Serve and swipe gently: land it in the short zone and make it bounce twice. 2 of 10.",
 "feed": "serve",
 "goal": {
 "type": "shots",
 "need": 2,
 "balls": 10,
-"back": true
+"double": true,
+"zone": [
+-0.77,
+0.77,
+0,
+0.62
+]
 }
 },
 {
