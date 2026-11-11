@@ -1,5 +1,8 @@
 # Changelog
 
+## 2.2.3 - crash fix
+- Fixed the crash during play: generated sounds could be read past their end by the audio mixer on Android. Every sound now has a guard tail.
+
 ## 2.2 - stability
 - Much lower memory and GPU load on Medium and High; 2048 px textures and the reflection probe are Ultra only; 3D resolution is capped on very dense screens.
 - Auto-detect is more conservative, and the game lowers graphics by itself after an unexpected close.

@@ -59,13 +59,23 @@ func _player(bus: String) -> AudioStreamPlayer:
 	return p
 
 func _wav(data: PackedByteArray, loop: bool = false) -> AudioStreamWAV:
+	# The engine's mixer reads a little past the last sample (interpolation, pitch, loop wrap). On
+	# Android that read can land outside the buffer and kill the app, so every sound carries a guard
+	# tail: a copy of its start for loops (seamless wrap), silence otherwise. loop_end stays before it.
+	var frames := data.size() / 2
+	var tail := data.slice(0, mini(1024, data.size())) if loop else PackedByteArray()
+	tail.resize(1024)
+	var padded := data.duplicate()
+	padded.append_array(tail)
 	var w := AudioStreamWAV.new()
 	w.format = AudioStreamWAV.FORMAT_16_BITS
 	w.mix_rate = RATE
-	w.data = data
+	w.stereo = false
+	w.data = padded
 	if loop:
 		w.loop_mode = AudioStreamWAV.LOOP_FORWARD
-		w.loop_end = data.size() / 2
+		w.loop_begin = 0
+		w.loop_end = frames
 	return w
 
 func _synth(d: Array) -> AudioStreamWAV:
