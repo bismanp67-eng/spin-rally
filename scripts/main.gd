@@ -37,7 +37,7 @@ func _ready() -> void:
 	var bg := ColorRect.new()
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
 	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	if World.Q >= 1:
+	if World.Q >= 2:
 		var sm := ShaderMaterial.new()
 		var sh := Shader.new()
 		sh.code = BLUR
@@ -170,7 +170,7 @@ func preview(kind: String, def: Dictionary) -> void:
 	var vp := SubViewport.new()
 	vp.own_world_3d = true
 	vp.transparent_bg = true
-	vp.msaa_3d = Viewport.MSAA_4X if World.Q >= 2 else Viewport.MSAA_2X
+	vp.msaa_3d = Viewport.MSAA_2X if World.Q >= 2 else Viewport.MSAA_DISABLED
 	c.add_child(vp)
 	var env := Environment.new()
 	env.background_mode = Environment.BG_COLOR
@@ -257,6 +257,8 @@ func scr_home() -> void:
 	title_l.text = "SPIN RALLY"
 	title_l.text = "SPIN RALLY"
 	add(UI.label("OFFLINE TABLE TENNIS  ·  EVERYTHING UNLOCKED", 20, UI.ACCENT))
+	if DB.crashed_last_time:
+		add(UI.label("The game closed unexpectedly last time, so graphics quality was lowered to %s. You can change it in Settings." % ["Low", "Medium", "High", "Ultra"][int(DB.opt("quality"))], 22, UI.DIM))
 	add(UI.button("Quick Match", func(): go(scr_quick), UI.ACCENT, 36, 110))
 	for e in [["Tournament", scr_tournament], ["Ladder", scr_ladder], ["Challenges", scr_challenges]]:
 		var scr: Callable = e[1]

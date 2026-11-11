@@ -1,6 +1,8 @@
 extends Node
 # Autoload: content tables (data/*.json) and the save file.
 const SAVE_PATH := "user://save.json"
+const ALIVE_PATH := "user://alive.flag"
+var crashed_last_time := false
 const World := preload("res://scripts/game/world.gd")
 var bats: Array
 var tables: Array
@@ -44,21 +46,41 @@ func _ready() -> void:
 				save.settings.assist_lv = 1 if save.settings.assist else 0
 			if not d.get("settings", {}).has("auto_q"):
 				save.settings.auto_q = int(save.settings.quality) == 1
-	if save.settings.auto_q:
+	# crash guard: the flag exists only while the game is in the foreground. Finding it at startup
+	# means the last session died mid-play, so step the graphics down one level and stay there.
+	if FileAccess.file_exists(ALIVE_PATH):
+		crashed_last_time = true
+		var prev: int = detect_quality() if save.settings.auto_q else int(save.settings.quality)
+		save.settings.quality = maxi(prev - 1, 0)
+		save.settings.auto_q = false
+		write()
+	elif save.settings.auto_q:
 		save.settings.quality = detect_quality()
+	_alive(true)
+
+func _alive(on: bool) -> void:
+	if on:
+		var f := FileAccess.open(ALIVE_PATH, FileAccess.WRITE)
+		if f:
+			f.store_string("1")
+	elif FileAccess.file_exists(ALIVE_PATH):
+		DirAccess.remove_absolute(ALIVE_PATH)
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_CLOSE_REQUEST:
-		write()
+	if what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_CLOSE_REQUEST or what == NOTIFICATION_PREDELETE:
+		if what != NOTIFICATION_PREDELETE:
+			write()
+		_alive(false)
+	elif what == NOTIFICATION_APPLICATION_RESUMED:
+		_alive(true)
 
 func detect_quality() -> int:
 	var cores := OS.get_processor_count()
 	var mem := float(OS.get_memory_info().get("physical", 0)) / 1073741824.0
 	if mem <= 0.5:
-		return 2 if cores >= 8 else 1
-	if cores >= 8 and mem >= 10.5:
-		return 3
-	if cores >= 8 and mem >= 5.2:
+		return 1
+	# conservative on purpose: High is heavy on memory and GPU; Ultra is never picked automatically
+	if cores >= 8 and mem >= 7.5:
 		return 2
 	if cores >= 6 and mem >= 3.2:
 		return 1
@@ -71,8 +93,13 @@ func apply_quality(vp: Viewport) -> void:
 	var q := clampi(int(save.settings.quality), 0, 3)
 	World.Q = q
 	dyn_scale = [0.75, 0.9, 1.0, 1.0][q]
+	# cap the 3D resolution: very dense screens otherwise need huge render targets
+	var h := float(DisplayServer.window_get_size().y)
+	var cap: float = [1100.0, 1400.0, 1800.0, 2400.0][q]
+	if h > cap:
+		dyn_scale *= cap / h
 	vp.scaling_3d_scale = dyn_scale
-	vp.msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X, Viewport.MSAA_4X][q]
+	vp.msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X][q]
 	vp.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA if q == 3 else Viewport.SCREEN_SPACE_AA_DISABLED
 	vp.use_debanding = q >= 2
 
@@ -86,7 +113,7 @@ func adapt_quality(vp: Viewport) -> void:
 		dyn_scale -= 0.1
 		vp.scaling_3d_scale = dyn_scale
 		if dyn_scale < 0.85:
-			vp.msaa_3d = Viewport.MSAA_2X if int(save.settings.quality) >= 2 else Viewport.MSAA_DISABLED
+			vp.msaa_3d = Viewport.MSAA_DISABLED
 
 static func load_json(n: String) -> Array:
 	var path := "res://data/%s.json" % n

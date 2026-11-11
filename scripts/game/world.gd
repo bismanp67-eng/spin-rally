@@ -12,9 +12,10 @@ static func col(hex: String) -> Color:
 static func tex(kind: String) -> Texture2D:
 	if _tex.has(kind):
 		return _tex[kind]
-	var size: int = [256, 512, 1024, 2048][Q]
-	if Q == 2 and kind in ["paint_n", "wood", "pimples_n"]:
-		size = 2048  # the table, bats and ball are seen closest: full resolution on High too
+	# memory budget: 2048 px only on Ultra and only for what is seen closest (table, bats)
+	var size: int = [256, 512, 1024, 1024][Q]
+	if Q == 3 and kind in ["paint_n", "wood", "pimples_n"]:
+		size = 2048
 	var t: Texture2D
 	if kind == "net":
 		var img := Image.create(64, 64, false, Image.FORMAT_RGBA8)
@@ -207,7 +208,7 @@ static func game_ball(def: Dictionary, colorblind: bool, scale: float = 1.6) -> 
 	img.fill_rect(Rect2i(96, 20, 12, 12), ink)
 	img.fill_rect(Rect2i(224, 96, 12, 12), ink)
 	if Q >= 2:
-		img.resize(2048, 1024, Image.INTERPOLATE_NEAREST)
+		img.resize(1024, 512, Image.INTERPOLATE_NEAREST)
 	img.generate_mipmaps()
 	var m := mat(Color.WHITE, 0.38, 0.0)
 	m.albedo_texture = ImageTexture.create_from_image(img)
@@ -575,7 +576,7 @@ static func arena(def: Dictionary) -> Node3D:
 			var band := box(n, Vector3(24, 0.5, 0.32), Vector3(0, 2.6, -11.99).rotated(Vector3.UP, a * PI / 2), mat(col(def.light).lerp(col(def.wall), 0.55), 0.6, 0.0, 0.25))
 			band.rotation.y = a * PI / 2
 		box(n, Vector3(24, 0.3, 24), Vector3(0, 8.1, 0), mat(col(def.wall).darkened(0.2), 0.95)).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	if Q >= 2:
+	if Q >= 3:
 		var probe := ReflectionProbe.new()
 		probe.position = Vector3(0, 1.6, 0)
 		probe.size = Vector3(22, 8, 22)

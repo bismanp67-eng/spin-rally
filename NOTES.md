@@ -28,3 +28,4 @@
 - v2.1 AO: LightmapGI baking was not attempted (no headless bake in CI); ambient occlusion is generated gradient strips and blobs at creases and contacts, not an ORM texture channel.
 - v2.1 textures: on High the table normal map, bat wood and rubber and the ball are 2048 px; floors and walls stay 1024 to limit memory. Not measured on a phone.
 - v2.1 replays: great points (8+ shots, 25 m/s+, edge or net-cord on the last shot, a hit from 1 m+ behind the table) replay at most once every 3 points.
+- v2.2 crash fix (not reproduced here, no device): cut GPU/memory load (2048 px textures only on Ultra, MSAA 2x on High, 3D resolution capped on dense screens, reflection probe Ultra only, auto-detect never above High and needs 7.5 GB for it) and added a crash guard that lowers graphics one level if the previous session died in the foreground. This reverses the v2.1 choice of 2048 px on High.

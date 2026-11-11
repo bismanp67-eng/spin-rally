@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.2 - stability
+- Much lower memory and GPU load on Medium and High; 2048 px textures and the reflection probe are Ultra only; 3D resolution is capped on very dense screens.
+- Auto-detect is more conservative, and the game lowers graphics by itself after an unexpected close.
+
 ## 2.1 - real bat
 - The bat is a real object: it follows the finger every physics step and the ball is hit only when the swept ball meets the moving blade. Contact point (sweet spot or edge) feeds the impulse model; edge hits are weaker and deflect.
 - Assist setting: Off (pure physics, true blade size), Light (default), Strong. Holding the bat still in the ball's path now blocks.
