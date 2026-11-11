@@ -76,6 +76,10 @@ var replay_i := 0.0
 var cam_x := 0.0
 var spin_angle := 0.0
 var hitstop := 0.0
+var rally_fast := 0.0
+var special_hit := -1
+var rally_retrieve := false
+var since_replay := 3
 var shake := 0.0
 var tick_i := 0
 var myrub := {}
@@ -240,6 +244,10 @@ func next_point() -> void:
 		wait_delay = step.machine.get("interval", 1.0)
 	ref.start(server)
 	Sfx.tension(0)
+	rally_fast = 0.0
+	special_hit = -1
+	rally_retrieve = false
+	since_replay += 1
 	if bot:
 		bot.x = 0.0
 		bot.goal_x = 0.0
@@ -260,6 +268,7 @@ func begin_toss(side: int, p: Vector3, sv: Dictionary, strike: Dictionary) -> vo
 	toss_T = 2.0 * toss_v0 / P.G
 	toss_t = 0.0
 	toss_strike = strike
+	ball.reset(p, Vector3.UP * toss_v0, Vector3.ZERO)
 	serve_swing = Vector3(sv.swing[0], sv.swing[1], sv.swing[2])
 	state = S_TOSS
 	serve_b.visible = false
@@ -276,6 +285,9 @@ func _strike(side: int, vel: Vector3, spin: Vector3, kind: String = "") -> void:
 	var power := clampf((speed - 8.0) / 14.0, 0.0, 1.0)
 	Sfx.hit(speed, spin.length())
 	Sfx.tension(ref.hits)
+	if ref.hits > 1:
+		rally_fast = maxf(rally_fast, speed)
+		rally_retrieve = rally_retrieve or absf(ball.pos.z) > P.HALF_L + 1.0
 	puff.position = ball.pos
 	puff.restart()
 	if power > 0.12:
@@ -350,13 +362,14 @@ func _physics_process(dt: float) -> void:
 					var s: Dictionary = bot.serve()
 					begin_toss(1, s.p, s.serve, s)
 		S_TOSS:
+			# real toss: the ball flies under the same physics, then the bat meets it on the way down
 			toss_t += dt
-			ball.pos = toss_p + Vector3.UP * (toss_v0 * toss_t - 0.5 * P.G * toss_t * toss_t)
-			ball.prev_pos = ball.pos
-			if toss_t >= toss_T:
-				ball.reset(toss_p, Vector3.ZERO, Vector3.ZERO)
+			ball.step(dt)
+			ball.events.clear()
+			if ball.vel.y < 0.0 and ball.pos.y <= toss_p.y:
+				var io: Array = Shot.impact(ball.vel, ball.spin, toss_strike.vb, toss_strike.n, myrub if toss_side == 0 else bot.rub)
 				ref.on_hit(toss_side)
-				_strike(toss_side, toss_strike.vel, toss_strike.spin, "serve")
+				_strike(toss_side, io[0], io[1], "serve")
 				state = S_RALLY
 		S_RALLY, S_OVER:
 			ball.step(dt)
@@ -393,10 +406,12 @@ func _on_ball_event(ev: Dictionary) -> void:
 			if absf(ball.vel.y) > 0.3:
 				Sfx.bounce(table_def.surface, absf(ball.vel.y), ball.spin.length())
 			if ev.edge and state == S_RALLY:
+				special_hit = ref.hits
 				flash("EDGE!", 0.9, Color(1, 0.9, 0.3))
 		"net", "cord":
 			Sfx.play("net", 1.0, 0.8)
 			if ev.t == "cord" and state == S_RALLY and not ref.is_serve:
+				special_hit = ref.hits
 				flash("NET CORD", 0.8, Color(1, 0.9, 0.3))
 		"floor":
 			if absf(ball.vel.y) > 0.3:
@@ -490,7 +505,10 @@ func _after_point() -> void:
 	if was_let:
 		next_point()
 		return
-	if (pending == "game" or pending == "match") and DB.opt("replay") and not replayed and frames.size() > 60:
+	# replays: game/match points always, great points at most once every few points
+	var great := feed == "match" and (ref.hits >= 8 or rally_fast > 25.0 or special_hit == ref.hits or rally_retrieve)
+	if DB.opt("replay") and not replayed and frames.size() > 60 and (pending == "game" or pending == "match" or (great and pending == "" and since_replay >= 3)):
+		since_replay = 0
 		replayed = true
 		state = S_REPLAY
 		replay_i = maxf(0.0, frames.size() - 330.0)
@@ -583,9 +601,8 @@ func _player_serve() -> void:
 		depth = 1.3
 	var tgt := Vector3(clampf(tan(sp.ang) * 0.9, -0.68, 0.68), P.TABLE_Y, -lerpf(0.4, 1.2, depth))
 	var p := Vector3(clampf(bat_pos.x, -0.6, 0.6), P.TABLE_Y + 0.25, P.HALF_L + 0.12)
-	var k: float = 0.8 + 0.4 * mybat.spin
-	var r: Dictionary = solver.solve_serve(p, tgt, sv.speed * lerpf(0.8, 1.1, depth) * (0.9 + 0.2 * mybat.speed),
-		sv.top * k, sv.side * k * hand + swipe_curve * 170.0, sv.cork * k * hand)
+	var r: Dictionary = solver.solve_serve_swing(p, sqrt(2.0 * P.G * sv.toss), tgt, sv.bat[0] * lerpf(0.8, 1.15, depth),
+		sv.bat[1], sv.bat[2] * hand + swipe_curve * 4.0, myrub)
 	bat_fh = not sv.bh
 	my_kind = "serve"
 	begin_toss(0, p, sv, r)
@@ -679,8 +696,11 @@ func _machine_launch() -> void:
 	if m.get("random", false):
 		place = rng.randf_range(-1.0, 1.0)
 	var p := _hold_pos()
+	# two counter-rotating wheels: ball speed is their mean rim speed, spin their difference (limited by it)
+	var v_wheel := lerpf(4.0, 11.0, m.get("speed", 0.3))
+	var w_max := 0.8 * v_wheel / P.R
 	var r: Dictionary = solver.solve(p, Vector3(place * 0.6, P.TABLE_Y, lerpf(0.55, 1.15, m.get("depth", 0.6))),
-		lerpf(4.0, 11.0, m.get("speed", 0.3)), m.get("top", 0.0) * 385.0, m.get("side", 0.0) * 280.0)
+		v_wheel, clampf(m.get("top", 0.0) * 385.0, -w_max, w_max), clampf(m.get("side", 0.0) * 280.0, -w_max, w_max))
 	ball.reset(p, Vector3.ZERO, Vector3.ZERO)
 	ref.start(1)
 	ref.on_hit(1)

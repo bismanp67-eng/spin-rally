@@ -23,3 +23,8 @@
 - Spin misreads are scaled (READ_K in `scripts/core/shot.gd`) because the true physical sensitivity made flat drives unplayable.
 - Screenshots were reviewed with software Vulkan on the Mobile renderer; frame rate on a phone is still unmeasured, so auto quality lowers the render scale if fps sags.
 - v2.1: the bat is geometric. A finger gives two axes (left-right, forward-back), so bat height follows the ball in every assist mode; Assist Off removes magnetism and uses the true blade size. The face angle is still solved from the stroke and your spin read at the moment of contact.
+- v2.1 serves: each serve is a bat path (speed into the ball, brush up/down, brush sideways) struck on a really tossed ball; the solver only chooses the face angle. Side-heavy serves carry little top/backspin because rubber grip is finite, and the corkscrew serve is effectively a heavy sidespin serve.
+- v2.1 ball machine: speed is the mean wheel rim speed, spin the wheel difference (capped at 80% of it); the head angle is aimed, flight is free physics.
+- v2.1 AO: LightmapGI baking was not attempted (no headless bake in CI); ambient occlusion is generated gradient strips and blobs at creases and contacts, not an ORM texture channel.
+- v2.1 textures: on High the table normal map, bat wood and rubber and the ball are 2048 px; floors and walls stay 1024 to limit memory. Not measured on a phone.
+- v2.1 replays: great points (8+ shots, 25 m/s+, edge or net-cord on the last shot, a hit from 1 m+ behind the table) replay at most once every 3 points.

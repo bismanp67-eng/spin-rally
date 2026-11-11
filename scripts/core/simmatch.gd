@@ -33,7 +33,8 @@ func play_point(server: int) -> int:
 			b.x = 0.0
 			b.goal_x = 0.0
 		var sv: Dictionary = bots[server].serve()
-		ball.reset(sv.p, sv.vel, sv.spin)
+		var io: Array = Shot.impact(Vector3(0.0, -sv.v_toss, 0.0), Vector3.ZERO, sv.vb, sv.n, bots[server].rub)
+		ball.reset(sv.p, io[0], io[1])
 		ref.on_hit(server)
 		bots[1 - server].on_incoming(ball.pos, ball.vel, ball.spin, true)
 		var res := {}

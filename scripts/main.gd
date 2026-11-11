@@ -22,9 +22,9 @@ var anim := true
 const BLUR := "shader_type canvas_item;
 uniform sampler2D screen : hint_screen_texture, filter_linear_mipmap;
 void fragment() {
-	vec3 c = textureLod(screen, SCREEN_UV, 3.2).rgb;
+	vec3 c = textureLod(screen, SCREEN_UV, 2.6).rgb;
 	float v = smoothstep(0.0, 1.0, UV.y);
-	COLOR = vec4(mix(c, vec3(0.03, 0.045, 0.085), 0.34 + 0.26 * v), 1.0);
+	COLOR = vec4(mix(c, vec3(0.03, 0.045, 0.085), 0.14 + 0.22 * v), 1.0);
 }"
 
 func _ready() -> void:

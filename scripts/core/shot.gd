@@ -250,6 +250,68 @@ func solve_swing(p: Vector3, v_in: Vector3, w_seen: Vector3, target: Vector3, a:
 		aim -= lat * 0.95
 	return out
 
+# Serve: the tossed ball (falling at v_toss, no spin) is struck by a bat moving at speed a along its face
+# normal while brushing b_up / b_side across it. Finds the face angle that sends the ball onto the
+# server's own half first and then to the target. Spin and trajectory come out of the contact itself.
+func solve_serve_swing(p: Vector3, v_toss: float, target: Vector3, a: float, b_up: float, b_side: float, rub: Dictionary) -> Dictionary:
+	var v_in := Vector3(0.0, -v_toss, 0.0)
+	var d := Vector3(target.x - p.x, 0.0, target.z - p.z)
+	var dist := d.length()
+	d /= dist
+	var out := {n = d, vb = d * a, ok = false}
+	var to_target := d
+	# sideways brushing throws the ball sideways too: turn the face until the ball leaves toward the target
+	for k in 3:
+		var n0 := d * cos(-0.3) + Vector3.UP * sin(-0.3)
+		var vb0 := n0 * a + (Vector3.UP * cos(-0.3) - d * sin(-0.3)) * b_up + d.cross(Vector3.UP) * b_side
+		var v0: Vector3 = impact(v_in, Vector3.ZERO, vb0, n0, rub)[0]
+		var h0 := Vector3(v0.x, 0.0, v0.z)
+		if h0.length() > 0.2:
+			d = d.rotated(Vector3.UP, h0.normalized().signed_angle_to(to_target, Vector3.UP)).normalized()
+	for pass_i in 2:
+		var right := d.cross(Vector3.UP)
+		for m in [1.0, 0.85, 1.15, 0.7, 1.3, 0.55, 1.5]:
+			var aa: float = a * m
+			var best := INF
+			var best_th := 0.0
+			var best_land := Vector3.ZERO
+			var th := -1.0
+			var stepv := 0.1
+			for i in 15 + 8:
+				# coarse scan of the face angle, then refine around the best one
+				var cand := th
+				if i >= 15:
+					cand = best_th + stepv * (1.0 if i % 2 == 1 else -1.0)
+					if i % 2 == 0:
+						stepv *= 0.5
+				else:
+					th += 0.1
+				if i >= 15 and best == INF:
+					break
+				var n := d * cos(cand) + Vector3.UP * sin(cand)
+				var vb := n * aa + (Vector3.UP * cos(cand) - d * sin(cand)) * b_up + right * b_side
+				var io := impact(v_in, Vector3.ZERO, vb, n, rub)
+				var r := fly(p, io[0], io[1], true)
+				if r.ok and absf((r.land - p).dot(to_target) - dist) < absf(best):
+					best = (r.land - p).dot(to_target) - dist
+					best_th = cand
+					best_land = r.land
+					out.n = n
+					out.vb = vb
+			if best == INF:
+				continue
+			out.ok = true
+			var lat := best_land - target
+			lat.y = 0.0
+			lat -= to_target * lat.dot(to_target)
+			if pass_i == 1 or lat.length() < 0.05:
+				return out
+			d = d.rotated(Vector3.UP, to_target.signed_angle_to((target - lat - p) * Vector3(1, 0, 1), Vector3.UP)).normalized()
+			break
+		if not out.ok:
+			return out
+	return out
+
 # Full stroke with human error. o: {p, v_in, w_in, target, a, b_up, b_side, rub, read, err, gross, off}
 # read 0..1 = how well incoming spin is judged, err = aim noise (m), gross = chance of a mishit,
 # off = contact distance from the sweet spot (0..1). Returns {vel, spin, n, vb}.

@@ -143,7 +143,7 @@ func tick(dt: float, bp: Vector3, bv: Vector3, bw: Vector3, incoming: bool, opp_
 	sh.kind = last_kind
 	return sh
 
-# Returns {p, vel, spin, serve}.
+# Returns the serve as a real swing: {p, n, vb, serve, v_toss}. The caller tosses the ball and applies the contact.
 func serve() -> Dictionary:
 	var sv: Dictionary = pool[rng.randi() % pool.size()]
 	x = rng.randf_range(-0.35, 0.35)
@@ -153,8 +153,10 @@ func serve() -> Dictionary:
 	var tgt := Vector3(rng.randf_range(-0.75, 0.75) * P.HALF_W + rng.randfn(0.0, lvl.place_err * 0.6), P.TABLE_Y,
 		-sgn * (lerpf(0.4, 1.2, depth) + rng.randfn(0.0, lvl.place_err * 0.6)))
 	var p := Vector3(x, P.TABLE_Y + 0.25, sgn * (P.HALF_L + 0.12))
-	var k: float = lvl.spin * st.spin * (0.8 + 0.4 * bat.spin)
-	var r: Dictionary = solver.solve_serve(p, tgt, sv.speed * lerpf(0.8, 1.1, depth), sv.top * k, sv.side * k * hand, sv.cork * k)
+	var k: float = lvl.spin * st.spin
+	var v_toss := sqrt(2.0 * P.G * sv.toss)
+	var r: Dictionary = solver.solve_serve_swing(p, v_toss, tgt, sv.bat[0] * lerpf(0.8, 1.15, depth), sv.bat[1] * k, sv.bat[2] * k * hand, rub)
+	var n: Vector3 = r.n
 	if rng.randf() < lvl.serve_fault:
-		r.vel.y += rng.randf_range(0.7, 1.3) * (1.0 if rng.randf() < 0.5 else -1.0)
-	return {p = p, vel = r.vel, spin = r.spin, serve = sv}
+		n = n.rotated(n.cross(Vector3.UP).normalized(), rng.randf_range(0.12, 0.25) * (1.0 if rng.randf() < 0.5 else -1.0))
+	return {p = p, n = n, vb = r.vb, serve = sv, v_toss = v_toss}

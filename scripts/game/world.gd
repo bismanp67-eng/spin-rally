@@ -13,6 +13,8 @@ static func tex(kind: String) -> Texture2D:
 	if _tex.has(kind):
 		return _tex[kind]
 	var size: int = [256, 512, 1024, 2048][Q]
+	if Q == 2 and kind in ["paint_n", "wood", "pimples_n"]:
+		size = 2048  # the table, bats and ball are seen closest: full resolution on High too
 	var t: Texture2D
 	if kind == "net":
 		var img := Image.create(64, 64, false, Image.FORMAT_RGBA8)
@@ -22,6 +24,17 @@ static func tex(kind: String) -> Texture2D:
 			img.fill_rect(Rect2i(0, i * 16, 64, 3), Color(0.04, 0.04, 0.06, 0.95))
 		img.generate_mipmaps()
 		t = ImageTexture.create_from_image(img)
+	elif kind == "strip":
+		var g2 := Gradient.new()
+		g2.offsets = PackedFloat32Array([0.0, 0.35, 1.0])
+		g2.colors = PackedColorArray([Color(0, 0, 0, 1), Color(0, 0, 0, 0.4), Color(0, 0, 0, 0)])
+		var gs := GradientTexture2D.new()
+		gs.gradient = g2
+		gs.fill_from = Vector2(0.5, 0.0)
+		gs.fill_to = Vector2(0.5, 1.0)
+		gs.width = 8
+		gs.height = 128
+		t = gs
 	elif kind == "blob":
 		var g := Gradient.new()
 		g.offsets = PackedFloat32Array([0.0, 0.55, 1.0])
@@ -41,7 +54,7 @@ static func tex(kind: String) -> Texture2D:
 		nt.generate_mipmaps = true
 		var ramp := Gradient.new()
 		match kind:
-			"grain", "grain_n":
+			"grain", "grain_n", "paint", "paint_n":
 				n.noise_type = FastNoiseLite.TYPE_SIMPLEX_SMOOTH
 				n.frequency = 0.035
 				n.fractal_octaves = 4
@@ -53,13 +66,11 @@ static func tex(kind: String) -> Texture2D:
 				n.fractal_lacunarity = 2.6
 				ramp.offsets = PackedFloat32Array([0.0, 0.35, 0.5, 0.65, 1.0])
 				ramp.colors = PackedColorArray([Color(0.62, 0.62, 0.62), Color(0.95, 0.95, 0.95), Color(0.72, 0.72, 0.72), Color(1, 1, 1), Color(0.7, 0.7, 0.7)])
-				size = mini(size, 1024)
 			"pimples_n":
 				n.noise_type = FastNoiseLite.TYPE_CELLULAR
 				n.frequency = 0.11
 				n.cellular_return_type = FastNoiseLite.RETURN_DISTANCE
 				n.fractal_type = FastNoiseLite.FRACTAL_NONE
-				size = mini(size, 1024)
 		if kind.ends_with("_n"):
 			nt.as_normal_map = true
 			nt.bump_strength = 5.0 if kind == "pimples_n" else 1.6
@@ -160,6 +171,25 @@ static func blob(parent: Node3D, size: Vector2, pos: Vector3, alpha: float) -> M
 	m.albedo_color = Color(1, 1, 1, alpha)
 	return add(parent, q, pos, m, false)
 
+# Faked ambient occlusion where two surfaces meet: a dark gradient that fades away from the crease.
+# The strip lies on the floor, dark edge at `pos`, fading toward local +Z (turned by rot_y).
+static func ao_strip(parent: Node3D, length: float, depth: float, pos: Vector3, rot_y: float, alpha: float = 0.55, upright: bool = false) -> void:
+	var q := PlaneMesh.new()
+	q.size = Vector2(length, depth)
+	var m := StandardMaterial3D.new()
+	m.shading_mode = BaseMaterial3D.SHADING_MODE_UNSHADED
+	m.transparency = BaseMaterial3D.TRANSPARENCY_ALPHA
+	m.albedo_texture = tex("strip")
+	m.albedo_color = Color(1, 1, 1, alpha)
+	var holder := Node3D.new()
+	holder.position = pos
+	holder.rotation.y = rot_y
+	parent.add_child(holder)
+	var mi := add(holder, q, Vector3(0, 0, depth * 0.5), m, false)
+	if upright:
+		mi.position = Vector3(0, depth * 0.5, 0.0)
+		mi.rotation.x = PI / 2
+
 # ---------- equipment ----------
 static func game_ball(def: Dictionary, colorblind: bool, scale: float = 1.6) -> MeshInstance3D:
 	var base: Color = Color(1.0, 0.92, 0.0) if colorblind else col(def.color)
@@ -176,6 +206,8 @@ static func game_ball(def: Dictionary, colorblind: bool, scale: float = 1.6) -> 
 			img.fill_rect(Rect2i(u + 10 + k * 15, 58, 9, 12), ink)
 	img.fill_rect(Rect2i(96, 20, 12, 12), ink)
 	img.fill_rect(Rect2i(224, 96, 12, 12), ink)
+	if Q >= 2:
+		img.resize(2048, 1024, Image.INTERPOLATE_NEAREST)
 	img.generate_mipmaps()
 	var m := mat(Color.WHITE, 0.38, 0.0)
 	m.albedo_texture = ImageTexture.create_from_image(img)
@@ -196,7 +228,7 @@ static func game_ball(def: Dictionary, colorblind: bool, scale: float = 1.6) -> 
 static func table(def: Dictionary) -> Node3D:
 	var n := Node3D.new()
 	var glow: float = def.glow
-	var top := pbr(col(def.top), def.rough, def.metal, "grain", Vector3.ONE * 3.0, "grain_n", 0.25)
+	var top := pbr(col(def.top), def.rough, def.metal, "paint", Vector3.ONE * 3.0, "paint_n", 0.25)
 	if def.alpha < 1.0:
 		top = mat(col(def.top), def.rough, def.metal, 0.0, def.alpha)
 	var line := mat(col(def.line), 0.5, 0.0, glow)
@@ -239,6 +271,12 @@ static func table(def: Dictionary) -> Node3D:
 	add(n, quad, Vector3(0, P.TABLE_Y + P.NET_H * 0.5 - 0.006, 0), netm, false)
 	box(n, Vector3(nw, 0.015, 0.006), Vector3(0, P.TABLE_Y + P.NET_H - 0.0075, 0), mat(Color(0.96, 0.96, 0.96), 0.7, 0.0, glow))
 	blob(n, Vector2(2.6, 4.0), Vector3(0, 0.006, 0), 0.55)
+	for sx in [-1.0, 1.0]:
+		for sz in [-1.0, 1.0]:
+			blob(n, Vector2(0.32, 0.32), Vector3(sx * 0.6, 0.008, sz * 1.02), 0.7)
+	# occlusion where the net meets the table
+	for sz in [-1.0, 1.0]:
+		ao_strip(n, P.HALF_W * 2.0, 0.07, Vector3(0, P.TABLE_Y + 0.0012, 0), 0.0 if sz > 0 else PI, 0.35)
 	return n
 
 static func bat(def: Dictionary) -> Node3D:
@@ -313,9 +351,9 @@ static func character(look: Dictionary, bat_def: Dictionary, hand: float) -> Nod
 		ball(head, 0.022, Vector3(sx * 0.108, 0.0, 0.0), skin, 10)
 	match int(look.hs):
 		0:
-			ball(head, 0.12, Vector3(0, 0.035, -0.02), hair, 28).scale = Vector3(0.98, 0.92, 1.0)
+			ball(head, 0.12, Vector3(0, 0.04, -0.04), hair, 28).scale = Vector3(0.98, 0.92, 1.0)
 		1:
-			ball(head, 0.118, Vector3(0, 0.04, -0.015), hair, 28).scale = Vector3(0.98, 0.9, 1.0)
+			ball(head, 0.118, Vector3(0, 0.045, -0.04), hair, 28).scale = Vector3(0.98, 0.9, 1.0)
 			ball(head, 0.06, Vector3(0, 0.15, -0.04), hair, 16)
 		2:
 			ball(head, 0.128, Vector3(0, 0.02, -0.035), hair, 28).scale = Vector3(1.0, 1.12, 0.95)
@@ -511,14 +549,15 @@ static func arena(def: Dictionary) -> Node3D:
 	var sa: Array = def.get("sun", [-1.05, 0.5])
 	sun.rotation = Vector3(sa[0], sa[1], 0)
 	sun.shadow_enabled = Q >= 2
-	sun.shadow_blur = 1.6 if Q == 2 else 2.2
+	sun.shadow_blur = 2.2 if Q == 2 else 2.8
+	sun.shadow_opacity = 0.62
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if Q == 3 else DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = 14.0
 	n.add_child(sun)
 	var gloss: float = maxf(def.get("gloss", 0.8), 0.5)
 	var floor_m := pbr(col(def.floor), gloss, 0.0, "grain", Vector3.ONE * 0.35, "grain_n", 0.12)
 	if props.has("lines") or def.id == "dojo":
-		floor_m = pbr(col(def.floor), gloss, 0.0, "wood", Vector3(0.5, 0.5, 0.06), "grain_n", 0.3)
+		floor_m = pbr(col(def.floor), gloss, 0.0, "wood", Vector3(1.1, 1.1, 0.16), "grain_n", 0.2)
 	var pl := PlaneMesh.new()
 	pl.size = Vector2(60, 60)
 	add(n, pl, Vector3.ZERO, floor_m)
@@ -528,6 +567,9 @@ static func arena(def: Dictionary) -> Node3D:
 			var wbox := box(n, Vector3(24, 8, 0.3), Vector3(0, 4.0, -12).rotated(Vector3.UP, a * PI / 2), wall)
 			wbox.rotation.y = a * PI / 2
 			wbox.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
+			# occlusion in the wall/floor crease and up the wall
+			ao_strip(n, 24.0, 2.2, Vector3(0, 0.004, -11.84).rotated(Vector3.UP, a * PI / 2), a * PI / 2, 0.6)
+			ao_strip(n, 24.0, 1.6, Vector3(0, 0.0, -11.83).rotated(Vector3.UP, a * PI / 2), a * PI / 2, 0.45, true)
 			var band := box(n, Vector3(24, 0.5, 0.32), Vector3(0, 2.6, -11.99).rotated(Vector3.UP, a * PI / 2), mat(col(def.light).lerp(col(def.wall), 0.55), 0.6, 0.0, 0.25))
 			band.rotation.y = a * PI / 2
 		box(n, Vector3(24, 0.3, 24), Vector3(0, 8.1, 0), mat(col(def.wall).darkened(0.2), 0.95)).cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
@@ -550,6 +592,10 @@ static func arena(def: Dictionary) -> Node3D:
 					for i in 7:
 						box(n, Vector3(0.05, 0.72, 1.36), Vector3(sx * 3.5, 0.37, -4.2 + i * 1.4), bm)
 						box(n, Vector3(0.052, 0.05, 1.36), Vector3(sx * 3.5, 0.73, -4.2 + i * 1.4), trim)
+				for sx in [-1.0, 1.0]:
+					ao_strip(n, 9.8, 0.5, Vector3(sx * 3.47, 0.004, 0), PI / 2 * sx, 0.6)
+					ao_strip(n, 9.8, 0.5, Vector3(sx * 3.53, 0.004, 0), -PI / 2 * sx, 0.6)
+				ao_strip(n, 7.0, 0.5, Vector3(0, 0.004, -5.17), 0.0, 0.6)
 				for i in 5:
 					box(n, Vector3(1.36, 0.72, 0.05), Vector3(-2.8 + i * 1.4, 0.37, -5.2), bm)
 					box(n, Vector3(1.36, 0.05, 0.052), Vector3(-2.8 + i * 1.4, 0.73, -5.2), trim)
@@ -559,6 +605,7 @@ static func arena(def: Dictionary) -> Node3D:
 				var rows := 7 if prop == "crowd" else 3
 				var step_m := mat(col(def.wall).lightened(0.06), 0.95)
 				for sx in [-1.0, 1.0]:
+					ao_strip(n, 14.0, 1.0, Vector3(sx * 4.2, 0.004, -1), PI / 2 * sx, 0.6)
 					for r in rows:
 						box(n, Vector3(1.0, 0.5 + r * 0.45, 14), Vector3(sx * (4.7 + r), (0.5 + r * 0.45) * 0.5, -1), step_m)
 						for i in int(26 * few):
@@ -611,7 +658,6 @@ static func arena(def: Dictionary) -> Node3D:
 				var lnm := mat(Color(0.95, 0.95, 0.9), 0.5)
 				for i in 5:
 					box(n, Vector3(20, 0.003, 0.06), Vector3(0, 0.002, -8 + i * 4.0), lnm)
-				box(n, Vector3(0.06, 0.003, 20), Vector3(0, 0.002, 0), mat(Color(0.8, 0.2, 0.2), 0.5))
 				for sx in [-1.0, 1.0]:
 					box(n, Vector3(0.1, 3.0, 1.8), Vector3(sx * 11.7, 3.2, -4), mat(Color(0.95, 0.95, 0.95), 0.6))
 					cyl(n, 0.23, 0.23, 0.02, Vector3(sx * 11.2, 3.05, -4), mat(Color(0.9, 0.35, 0.1), 0.6), 20)

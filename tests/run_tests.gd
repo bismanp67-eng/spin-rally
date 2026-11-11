@@ -185,6 +185,20 @@ func _init() -> void:
 	var edge_fl := sh.fly(bp, edge[0], edge[1])
 	ok(edge[0].length() < centre[0].length() * 0.9, "edge contact gives a weaker return (%.1f vs %.1f m/s)" % [edge[0].length(), centre[0].length()])
 	ok((edge_fl.land - tg).length() > (clean.land - tg).length() + 0.15, "edge contact is less accurate (%.2f m off target)" % (edge_fl.land - tg).length())
+	# --- serves through the bat ---
+	for sv in load("res://scripts/core/db.gd").load_json("serves"):
+		var sp0 := Vector3(0.0, P.TABLE_Y + 0.25, P.HALF_L + 0.12)
+		var stg := Vector3(0.2, P.TABLE_Y, -lerpf(0.45, 1.15, sv.depth))
+		var vt := sqrt(2.0 * P.G * sv.toss)
+		var ssw := sh.solve_serve_swing(sp0, vt, stg, sv.bat[0], sv.bat[1], sv.bat[2], rub)
+		var sio: Array = Shot.impact(Vector3(0, -vt, 0), Vector3.ZERO, ssw.vb, ssw.n, rub)
+		var sfl := sh.fly(sp0, sio[0], sio[1], true)
+		var sd := Vector3(sio[0].x, 0, sio[0].z).normalized()
+		var stop: float = sio[1].dot(Vector3.UP.cross(sd))
+		var side_led: bool = absf(sv.bat[2]) > 1.5 * absf(sv.bat[1])  # side-dominant serves need not carry top/backspin
+		var kind_ok: bool = (side_led or sv.bat[1] < 2.0 or stop > 40.0) and (side_led or sv.bat[1] > -2.0 or stop < -40.0) and (absf(sv.bat[2]) < 3.0 or absf(sio[1].y) + absf(sio[1].dot(sd)) > 60.0)
+		ok(sv.toss >= 0.16 and ssw.ok and sfl.ok and sfl.first_ok, "%s serve lands legally on both halves" % sv.id)
+		ok(kind_ok, "%s serve has its expected spin (top %.0f, side %.0f rad/s)" % [sv.id, stop, sio[1].y])
 	# --- solver ---
 	var p1 := Vector3(0.2, 1.0, 1.5)
 	for spec in [[9.0, 300.0, 0.0], [5.0, -280.0, 140.0], [13.0, 100.0, -200.0]]:
