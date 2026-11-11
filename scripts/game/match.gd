@@ -75,7 +75,14 @@ var shake := 0.0
 var tick_i := 0
 var myrub := {}
 var my_kind := ""
-var opp_kind := ""
+var opp_kind := "drive"
+var arena_n: Node3D
+var crowd_mat: ShaderMaterial
+var excite := 0.0
+var clock := 0.0
+var prev_ox := 0.0
+var opp_move := 0.0
+var fps_t := 0.0
 # nodes
 var cam: Camera3D
 var ball_n: MeshInstance3D
@@ -116,27 +123,25 @@ func _ready() -> void:
 	ball.mu_table = table_def.mu
 	solver.s.e_table = table_def.e
 	solver.s.mu_table = table_def.mu
-	var q: int = int(DB.opt("quality"))
-	get_viewport().scaling_3d_scale = [0.7, 0.9, 1.0][q]
-	get_viewport().msaa_3d = [Viewport.MSAA_DISABLED, Viewport.MSAA_2X, Viewport.MSAA_4X][q]
-	add_child(World.arena(arena_def, q))
+	DB.apply_quality(get_viewport())
+	arena_n = World.arena(arena_def)
+	add_child(arena_n)
+	crowd_mat = arena_n.get_meta("crowd") if arena_n.has_meta("crowd") else null
 	add_child(World.table(table_def))
 	cam = Camera3D.new()
 	cam.keep_aspect = Camera3D.KEEP_WIDTH
 	cam.fov = 46.0
 	cam.near = 0.1
-	cam.far = 120.0
+	cam.far = 150.0
+	cam.position = Vector3(0, 2.4, 4.6)
 	add_child(cam)
 	var bdef: Dictionary = DB.find(DB.balls, DB.save.equip.ball)
-	var bcol: Color = Color(1.0, 0.92, 0.0) if DB.opt("colorblind") else World.col(bdef.color)
-	ball_n = World.ball(self, P.R * 1.6, Vector3.ZERO, World.mat(bcol, 0.5, 0.0, 0.35 if DB.opt("colorblind") else 0.1))
-	World.ball(ball_n, P.R * 0.7, Vector3(0, 0, P.R * 1.1), World.mat(Color(0.05, 0.05, 0.05) if DB.opt("colorblind") else World.col(bdef.trail).darkened(0.35), 0.6), 6)
-	var sh := World.cyl(self, 0.04, 0.04, 0.001, Vector3.ZERO, World.mat(Color.BLACK, 1.0, 0.0, 0.0, 0.4))
-	sh.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
-	shadow_n = sh
+	ball_n = World.game_ball(bdef, DB.opt("colorblind"))
+	add_child(ball_n)
+	shadow_n = World.blob(self, Vector2(0.13, 0.13), Vector3.ZERO, 0.75)
 	if DB.opt("trail"):
 		for i in 8:
-			var t := World.ball(self, P.R * (1.45 - i * 0.14), Vector3(0, -5, 0), World.mat(World.col(bdef.trail), 0.6, 0.0, 0.3, 0.45 - i * 0.05), 6)
+			var t := World.ball(self, P.R * (1.45 - i * 0.14), Vector3(0, -5, 0), World.mat(World.col(bdef.trail), 0.6, 0.0, 0.6, 0.42 - i * 0.045), 10)
 			t.cast_shadow = GeometryInstance3D.SHADOW_CASTING_SETTING_OFF
 			trail.append(t)
 	bat_n = World.bat(mybat)
@@ -155,20 +160,22 @@ func _ready() -> void:
 	puff = CPUParticles3D.new()
 	puff.one_shot = true
 	puff.emitting = false
-	puff.amount = 14
-	puff.lifetime = 0.35
+	puff.amount = 18
+	puff.lifetime = 0.32
 	puff.explosiveness = 1.0
 	puff.spread = 180.0
 	puff.initial_velocity_min = 0.6
-	puff.initial_velocity_max = 1.8
-	puff.gravity = Vector3(0, -3, 0)
+	puff.initial_velocity_max = 2.2
+	puff.gravity = Vector3(0, -4, 0)
+	puff.scale_amount_min = 0.5
+	puff.scale_amount_max = 1.2
 	var pm := SphereMesh.new()
-	pm.radius = 0.012
-	pm.height = 0.024
-	pm.radial_segments = 4
-	pm.rings = 2
+	pm.radius = 0.009
+	pm.height = 0.018
+	pm.radial_segments = 6
+	pm.rings = 3
 	puff.mesh = pm
-	puff.material_override = World.mat(Color(1, 1, 0.8), 0.5, 0.0, 1.5)
+	puff.material_override = World.mat(Color(1, 0.97, 0.8), 0.5, 0.0, 2.5)
 	add_child(puff)
 	_build_hud()
 	Sfx.ambience(arena_def.crowd)
@@ -195,6 +202,7 @@ func start_step(i: int) -> void:
 		bot = Bot.new()
 		bot.setup(1, DB.levels[int(m.level)], def, DB.find(DB.bats, def.bat), DB.serves, rng, solver)
 		opp_n = World.character(def.look, DB.find(DB.bats, def.bat), -1.0 if def.hand == "L" else 1.0)
+		opp_kind = "drive"
 		add_child(opp_n)
 		rules.setup(int(m.get("best_of", 3)), rng.randi() % 2, int(m.get("target", 11)))
 		var st: Array = m.get("start", [0, 0])
@@ -425,6 +433,7 @@ func _end_rally(res: Dictionary) -> void:
 		pending = rules.add_point(w)
 		var hype: float = arena_def.crowd * clampf(0.35 + ref.hits * 0.1 + (0.4 if pending != "" else 0.0), 0.0, 1.2)
 		Sfx.crowd("cheer" if w == 0 or pending != "" else "aww", hype)
+		excite = clampf(hype * 1.2, 0.0, 1.0) if (w == 0 or pending != "") else 0.15
 	Sfx.play("good" if good else "bad", 1.0, 0.5)
 	_eval_goal(res)
 	_update_hud()
@@ -777,7 +786,10 @@ func _process(dt: float) -> void:
 		# true spin axis; rate scaled down so the logo stays readable instead of strobing
 		ball_n.basis = (Basis(ball.spin / wl, wl * dt * 0.1) * ball_n.basis).orthonormalized()
 	var over_table := absf(bp.x) < P.HALF_W and absf(bp.z) < P.HALF_L and bp.y > P.TABLE_Y
-	shadow_n.position = Vector3(bp.x, (P.TABLE_Y if over_table else 0.0) + 0.004, bp.z)
+	shadow_n.position = Vector3(bp.x, (P.TABLE_Y if over_table else 0.0) + 0.005, bp.z)
+	var sh_h := maxf(bp.y - shadow_n.position.y, 0.0)
+	shadow_n.scale = Vector3.ONE * (1.0 + sh_h * 1.2)
+	shadow_n.material_override.albedo_color.a = clampf(0.8 - sh_h * 0.5, 0.2, 0.8)
 	if trail.size() > 0 and not paused:
 		trail_pos.push_front(bp)
 		if trail_pos.size() > 9:
@@ -788,23 +800,35 @@ func _process(dt: float) -> void:
 			trail[i].visible = i < n_vis and i + 1 < trail_pos.size()
 			if trail[i].visible:
 				trail[i].position = trail_pos[i + 1]
+	clock += dt
 	var sw := sin(psw * PI)
-	bat_n.position = bt + Vector3(0, sw * 0.08, -sw * 0.3)
+	var open: float = {"push": 0.55, "chop": 0.7, "touch": 0.2, "loop": -0.55, "smash": 0.1}.get(my_kind, 0.0) if psw > 0.0 else 0.0
+	var lift: float = {"loop": 0.24, "chop": -0.14, "push": -0.05, "smash": -0.12}.get(my_kind, 0.08)
+	bat_n.position = bt + Vector3(0, sw * lift, -sw * 0.3)
 	var fh_side := hand if bat_fh else -hand
-	bat_n.rotation = Vector3(-0.35 - sw * 0.5, PI if bat_fh else 0.0, -fh_side * 0.9)
+	bat_n.rotation = Vector3(-0.35 + open - sw * 0.45, PI if bat_fh else 0.0, -fh_side * 0.9)
 	if me_n.visible:
-		me_n.position = Vector3(bt.x + hand * 0.3, 0, P.HALF_L + 0.75)
-		me_n.get_meta("arm").rotation = Vector3(-1.0 - sin(psw * PI) * 1.2, 0, -hand * 0.3)
+		me_n.position = Vector3(bt.x + hand * 0.32, 0, P.HALF_L + 0.8)
+		World.pose(me_n, my_kind if my_kind != "" else "drive", clampf((bp.z + 0.6) / 1.6, 0.0, 1.0) if ref.hitter == 1 else 0.0, psw, 0.0, clock)
 	if opp_n:
-		opp_n.position = Vector3(ox, 0, -(P.HALF_L + bot.st.standoff + 0.3))
-		var wind := (1.0 - toss_t / maxf(toss_T, 0.01)) if state == S_TOSS and toss_side == 1 else 0.0
-		opp_n.get_meta("arm").rotation = Vector3(-1.0 - sin(osw * PI) * 1.3 - wind * (0.4 + absf(serve_swing.y)), 0, bot.hand * (0.3 + serve_swing.x * wind * 1.2))
+		opp_move = lerpf(opp_move, clampf((ox - prev_ox) / maxf(dt, 0.001) / 2.5, -1.0, 1.0), minf(1.0, dt * 8.0))
+		prev_ox = ox
+		opp_n.position = Vector3(ox - bot.hand * 0.3, 0, -(P.HALF_L + bot.st.standoff + 0.45))
+		var serving := state == S_TOSS and toss_side == 1
+		var tossk := toss_t / maxf(toss_T, 0.01)
+		var prep := clampf((0.6 - bp.z) / 1.6, 0.0, 1.0) if (state == S_RALLY and ref.hitter == 0) else (tossk if serving else 0.0)
+		World.pose(opp_n, "serve" if serving else opp_kind, prep, osw, opp_move, clock, sin(tossk * PI) if serving else 0.0)
+	if crowd_mat:
+		excite = lerpf(excite, 0.0, minf(1.0, dt * 0.9))
+		crowd_mat.set_shader_parameter("excite", excite)
 	cam_x = lerpf(cam_x, clampf(bp.x, -1.0, 1.0) * 0.16, minf(1.0, dt * 3.0))
 	var cp := Vector3(cam_x, 1.72, 3.25)
 	var look := Vector3(cam_x * 0.5, 0.98, -0.2)
 	if replay:
-		cp = Vector3(2.7, 2.7, 4.4)
-		look = Vector3(0.1, 0.85, -0.1)
+		# cinematic slow orbit
+		var ang := 0.55 + replay_i / maxf(frames.size(), 1.0) * 0.6
+		cp = Vector3(sin(ang) * 4.9, 2.5, cos(ang) * 4.9 + 0.2)
+		look = Vector3(0.0, 0.9, -0.1)
 	elif DB.opt("fp_cam"):
 		cp = Vector3(bt.x * 0.5, 1.32, 2.5)
 		look = Vector3(bt.x * 0.2, 0.8, -0.8)
@@ -813,7 +837,11 @@ func _process(dt: float) -> void:
 	cam.h_offset = randf_range(-1.0, 1.0) * shake
 	cam.v_offset = randf_range(-1.0, 1.0) * shake
 	shake = lerpf(shake, 0.0, minf(1.0, dt * 10.0))
-	cam.fov = 54.0 if replay else 46.0
+	cam.fov = lerpf(cam.fov, (54.0 if replay else 46.0) + shake * 70.0, minf(1.0, dt * 10.0))
+	fps_t += dt
+	if fps_t > 3.0:
+		fps_t = 0.0
+		DB.adapt_quality(get_viewport())
 	if tip_t > 0.0:
 		tip_t -= dt
 		tip_l.modulate.a = clampf(tip_t * 3.0, 0.0, 1.0)

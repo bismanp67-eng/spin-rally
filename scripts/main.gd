@@ -356,7 +356,14 @@ func scr_settings() -> void:
 	title_l.text = "Settings"
 	var st: Dictionary = DB.save.settings
 	add(UI.label("Graphics quality", 24, UI.DIM))
-	choices(["Low", "Medium", "High"], int(st.quality), func(i): st.quality = i)
+	choices(["Low", "Medium", "High", "Ultra"], int(st.quality), func(i):
+		st.quality = i
+		st.auto_q = false, 4)
+	add(UI.button("Auto-detect quality:  %s" % ("ON" if st.auto_q else "OFF"), func():
+		st.auto_q = not st.auto_q
+		if st.auto_q:
+			st.quality = DB.detect_quality()
+		render(), Color(0.1, 0.3, 0.2) if st.auto_q else UI.PANEL, 26, 72))
 	add(UI.label("FPS cap", 24, UI.DIM))
 	choices([30, 60, 120], [30, 60, 120].find(int(st.fps)), func(i):
 		st.fps = [30, 60, 120][i]
