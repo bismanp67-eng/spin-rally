@@ -103,7 +103,7 @@
 "type": "shots",
 "need": 4,
 "balls": 10,
-"max_top": -40
+"max_top": -120
 },
 "machine": {
 "speed": 0.4,
@@ -120,7 +120,7 @@
 "type": "shots",
 "need": 4,
 "balls": 10,
-"min_top": 70
+"min_top": 250
 },
 "machine": {
 "speed": 0.2,
@@ -137,7 +137,7 @@
 "type": "shots",
 "need": 3,
 "balls": 10,
-"min_side": 35
+"min_side": 110
 },
 "machine": {
 "speed": 0.25,

@@ -1,14 +1,14 @@
 [
-{"id":"pendulum","name":"Pendulum","toss":0.30,"top":-40,"side":90,"cork":0,"speed":6.0,"depth":0.5,"swing":[-0.5,-0.25,-0.1],"bh":false,"desc":"Classic forehand sidespin with a touch of backspin."},
-{"id":"short_backspin","name":"Short Backspin","toss":0.22,"top":-110,"side":0,"cork":0,"speed":4.6,"depth":0.1,"swing":[0.0,-0.3,-0.25],"bh":false,"desc":"Low and short. Hard to attack."},
-{"id":"long_fast_top","name":"Long Fast Topspin","toss":0.22,"top":80,"side":0,"cork":0,"speed":9.5,"depth":1.0,"swing":[0.0,0.15,-0.6],"bh":false,"desc":"A deep, quick surprise."},
-{"id":"backhand_side","name":"Backhand Sidespin","toss":0.20,"top":10,"side":-85,"cork":0,"speed":6.0,"depth":0.55,"swing":[0.5,-0.1,-0.1],"bh":true,"desc":"Across the body, breaking wide."},
-{"id":"reverse_pendulum","name":"Reverse Pendulum","toss":0.32,"top":-30,"side":-95,"cork":0,"speed":5.8,"depth":0.5,"swing":[0.5,-0.25,-0.1],"bh":false,"desc":"Pendulum look, opposite break."},
-{"id":"nospin_fake","name":"No-Spin Fake","toss":0.25,"top":-4,"side":0,"cork":0,"speed":5.4,"depth":0.4,"swing":[0.0,-0.3,-0.25],"bh":false,"desc":"Looks like backspin. It is not."},
-{"id":"tomahawk","name":"Tomahawk","toss":0.35,"top":40,"side":-75,"cork":0,"speed":6.4,"depth":0.6,"swing":[0.45,0.2,-0.2],"bh":false,"desc":"Bat held high, slicing outward."},
-{"id":"shovel","name":"Shovel","toss":0.22,"top":20,"side":45,"cork":0,"speed":7.6,"depth":0.85,"swing":[-0.2,0.05,-0.5],"bh":false,"desc":"A quick push-like dig, deep to the body."},
-{"id":"reverse_tomahawk","name":"Reverse Tomahawk","toss":0.35,"top":35,"side":80,"cork":0,"speed":6.2,"depth":0.6,"swing":[-0.45,0.2,-0.2],"bh":false,"desc":"Tomahawk with the wrist turned inward."},
-{"id":"high_toss","name":"High Toss","toss":1.40,"top":-60,"side":120,"cork":0,"speed":6.2,"depth":0.5,"swing":[-0.55,-0.3,-0.1],"bh":false,"desc":"A towering toss for maximum spin."},
-{"id":"corkscrew","name":"Corkscrew","toss":0.50,"top":-10,"side":0,"cork":150,"speed":5.4,"depth":0.5,"swing":[-0.3,-0.4,0.0],"bh":false,"desc":"Spins like a drill and kicks sideways off the bounce."},
-{"id":"ghost","name":"Ghost Serve","toss":0.25,"top":-170,"side":0,"cork":0,"speed":3.9,"depth":0.0,"swing":[0.0,-0.35,-0.2],"bh":false,"desc":"So much backspin it creeps back toward the net."}
+{"id": "pendulum", "name": "Pendulum", "toss": 0.3, "top": -140, "side": 315, "cork": 0, "speed": 6.0, "depth": 0.5, "swing": [-0.5, -0.25, -0.1], "bh": false, "desc": "Classic forehand sidespin with a touch of backspin."},
+{"id": "short_backspin", "name": "Short Backspin", "toss": 0.22, "top": -385, "side": 0, "cork": 0, "speed": 4.6, "depth": 0.1, "swing": [0.0, -0.3, -0.25], "bh": false, "desc": "Low and short. Hard to attack."},
+{"id": "long_fast_top", "name": "Long Fast Topspin", "toss": 0.22, "top": 280, "side": 0, "cork": 0, "speed": 9.5, "depth": 1.0, "swing": [0.0, 0.15, -0.6], "bh": false, "desc": "A deep, quick surprise."},
+{"id": "backhand_side", "name": "Backhand Sidespin", "toss": 0.2, "top": 35, "side": -298, "cork": 0, "speed": 6.0, "depth": 0.55, "swing": [0.5, -0.1, -0.1], "bh": true, "desc": "Across the body, breaking wide."},
+{"id": "reverse_pendulum", "name": "Reverse Pendulum", "toss": 0.32, "top": -105, "side": -332, "cork": 0, "speed": 5.8, "depth": 0.5, "swing": [0.5, -0.25, -0.1], "bh": false, "desc": "Pendulum look, opposite break."},
+{"id": "nospin_fake", "name": "No-Spin Fake", "toss": 0.25, "top": -14, "side": 0, "cork": 0, "speed": 5.4, "depth": 0.4, "swing": [0.0, -0.3, -0.25], "bh": false, "desc": "Looks like backspin. It is not."},
+{"id": "tomahawk", "name": "Tomahawk", "toss": 0.35, "top": 140, "side": -262, "cork": 0, "speed": 6.4, "depth": 0.6, "swing": [0.45, 0.2, -0.2], "bh": false, "desc": "Bat held high, slicing outward."},
+{"id": "shovel", "name": "Shovel", "toss": 0.22, "top": 70, "side": 158, "cork": 0, "speed": 7.6, "depth": 0.85, "swing": [-0.2, 0.05, -0.5], "bh": false, "desc": "A quick push-like dig, deep to the body."},
+{"id": "reverse_tomahawk", "name": "Reverse Tomahawk", "toss": 0.35, "top": 122, "side": 280, "cork": 0, "speed": 6.2, "depth": 0.6, "swing": [-0.45, 0.2, -0.2], "bh": false, "desc": "Tomahawk with the wrist turned inward."},
+{"id": "high_toss", "name": "High Toss", "toss": 1.4, "top": -210, "side": 420, "cork": 0, "speed": 6.2, "depth": 0.5, "swing": [-0.55, -0.3, -0.1], "bh": false, "desc": "A towering toss for maximum spin."},
+{"id": "corkscrew", "name": "Corkscrew", "toss": 0.5, "top": -35, "side": 0, "cork": 525, "speed": 5.4, "depth": 0.5, "swing": [-0.3, -0.4, 0.0], "bh": false, "desc": "Spins like a drill and kicks sideways off the bounce."},
+{"id": "ghost", "name": "Ghost Serve", "toss": 0.25, "top": -595, "side": 0, "cork": 0, "speed": 3.9, "depth": 0.0, "swing": [0.0, -0.35, -0.2], "bh": false, "desc": "So much backspin it creeps back toward the net."}
 ]

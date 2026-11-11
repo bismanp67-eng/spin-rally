@@ -70,6 +70,12 @@ var frames: Array = []
 var replay_i := 0.0
 var cam_x := 0.0
 var spin_angle := 0.0
+var hitstop := 0.0
+var shake := 0.0
+var tick_i := 0
+var myrub := {}
+var my_kind := ""
+var opp_kind := ""
 # nodes
 var cam: Camera3D
 var ball_n: MeshInstance3D
@@ -102,6 +108,7 @@ func _ready() -> void:
 	rng.randomize()
 	steps = cfg.steps
 	mybat = DB.my_bat()
+	myrub = Shot.rubber(mybat)
 	hand = -1.0 if DB.opt("lefty") else 1.0
 	table_def = DB.find(DB.tables, DB.save.equip.table)
 	arena_def = DB.find(DB.arenas, DB.save.equip.arena)
@@ -242,44 +249,47 @@ func begin_toss(side: int, p: Vector3, sv: Dictionary, strike: Dictionary) -> vo
 	if side == 1:
 		sub_flash(sv.name, UI.DIM)
 
-func _strike(side: int, vel: Vector3, spin: Vector3) -> void:
+func _strike(side: int, vel: Vector3, spin: Vector3, kind: String = "") -> void:
 	ball.vel = vel
 	ball.spin = spin
+	ball.prev_pos = ball.pos
 	var d := Vector3(vel.x, 0, vel.z).normalized()
 	var top := spin.dot(Vector3.UP.cross(d))
-	Sfx.hit(vel.length(), spin.length())
+	var speed := vel.length()
+	var power := clampf((speed - 8.0) / 14.0, 0.0, 1.0)
+	Sfx.hit(speed, spin.length())
 	puff.position = ball.pos
 	puff.restart()
-	if DB.opt("vibrate") and side == 0:
-		Input.vibrate_handheld(18)
+	if power > 0.12:
+		hitstop = lerpf(0.04, 0.07, power)
+	if speed > 16.0:
+		shake = 0.015 + 0.04 * power
 	if side == 0:
+		if DB.opt("vibrate"):
+			Input.vibrate_handheld(int(lerpf(10.0, 45.0, power)), lerpf(0.35, 1.0, power))
 		bat_swing = 1.0
-		cur = {speed = vel.length(), top = top, side = absf(spin.y), landed = false}
-		DB.save.stats.fastest = maxf(DB.save.stats.fastest, vel.length() * 3.6)
+		cur = {speed = speed, top = top, side = absf(spin.y), landed = false}
+		DB.save.stats.fastest = maxf(DB.save.stats.fastest, speed * 3.6)
 		if bot:
 			bot.on_incoming(ball.pos, vel, spin, state == S_TOSS)
 	else:
 		opp_swing = 1.0
+		opp_kind = kind
 		_predict_assist()
-		var txt := "NO SPIN"
-		if absf(top) > 25.0 or absf(spin.y) > 25.0 or absf(spin.dot(d)) > 40.0:
-			var parts: Array = []
-			if top > 25.0: parts.append("TOPSPIN")
-			if top < -25.0: parts.append("BACKSPIN")
-			if absf(spin.y) > 25.0: parts.append("SIDESPIN")
-			if absf(spin.dot(d)) > 40.0: parts.append("CORKSCREW")
-			txt = " + ".join(parts)
-		sub_flash(txt, Color(0.5, 0.85, 1.0) if top < -25.0 else (Color(1.0, 0.6, 0.4) if top > 25.0 else UI.DIM))
+		var parts: Array = []
+		if top > 80.0: parts.append("TOPSPIN")
+		if top < -80.0: parts.append("BACKSPIN")
+		if absf(spin.y) > 80.0: parts.append("SIDESPIN")
+		if absf(spin.dot(d)) > 250.0: parts.append("CORKSCREW")
+		sub_flash("NO SPIN" if parts.is_empty() else " + ".join(parts),
+			Color(0.5, 0.85, 1.0) if top < -80.0 else (Color(1.0, 0.6, 0.4) if top > 80.0 else UI.DIM))
 
 func _predict_assist() -> void:
 	var s: RefCounted = solver.s
-	s.pos = ball.pos
-	s.vel = ball.vel
-	s.spin = ball.spin
-	s.events.clear()
+	s.reset(ball.pos, ball.vel, ball.spin)
 	var mine := false
 	assist_on = false
-	for i in 300:
+	for i in 600:
 		s.step()
 		for ev in s.events:
 			if ev.t == "table" and ev.side == 0:
@@ -294,15 +304,21 @@ func _physics_process(dt: float) -> void:
 	if paused or state == S_DONE:
 		return
 	now += dt
+	_update_swipe()
+	if hitstop > 0.0:
+		# hit-stop: freeze the world for a few frames on hard contact
+		hitstop -= dt
+		ball.prev_pos = ball.pos
+		return
 	state_t += dt
+	tick_i += 1
 	bat_swing = maxf(0.0, bat_swing - dt * 4.0)
 	opp_swing = maxf(0.0, opp_swing - dt * 4.0)
-	_update_swipe()
-	_update_bat(dt)
 	var fresh := not swipe_used and now - swipe_t < 0.15
 	match state:
 		S_WAIT:
 			ball.pos = _hold_pos()
+			ball.prev_pos = ball.pos
 			ball.vel = Vector3.ZERO
 			if server == 0:
 				if fresh and swipe_v.y < 0.0 and not radial.visible:
@@ -317,10 +333,11 @@ func _physics_process(dt: float) -> void:
 		S_TOSS:
 			toss_t += dt
 			ball.pos = toss_p + Vector3.UP * (toss_v0 * toss_t - 0.5 * P.G * toss_t * toss_t)
+			ball.prev_pos = ball.pos
 			if toss_t >= toss_T:
-				ball.pos = toss_p
+				ball.reset(toss_p, Vector3.ZERO, Vector3.ZERO)
 				ref.on_hit(toss_side)
-				_strike(toss_side, toss_strike.vel, toss_strike.spin)
+				_strike(toss_side, toss_strike.vel, toss_strike.spin, "serve")
 				state = S_RALLY
 		S_RALLY, S_OVER:
 			ball.step(dt)
@@ -332,18 +349,18 @@ func _physics_process(dt: float) -> void:
 					var sh: Dictionary = bot.tick(dt, ball.pos, ball.vel, ball.spin, ref.hitter == 0 and ref.landed, bat_pos.x)
 					if sh.has("vel"):
 						ref.on_hit(1)
-						_strike(1, sh.vel, sh.spin)
+						_strike(1, sh.vel, sh.spin, sh.kind)
 				if fresh and ref.hitter == 1:
 					_player_try_hit()
 			elif state_t > 1.5:
 				_after_point()
 		S_REPLAY:
-			replay_i += 0.4
+			replay_i += 0.2
 			if int(replay_i) >= frames.size():
 				_end_replay()
 	if bot:
 		opp_x = bot.x
-	if state != S_REPLAY and state != S_WAIT:
+	if state != S_REPLAY and state != S_WAIT and tick_i % 2 == 0:
 		frames.append([ball.pos, bat_pos, opp_x, opp_swing, bat_swing])
 		if frames.size() > 420:
 			frames.pop_front()
@@ -545,17 +562,19 @@ func _player_serve() -> void:
 	var p := Vector3(clampf(bat_pos.x, -0.6, 0.6), P.TABLE_Y + 0.25, P.HALF_L + 0.12)
 	var k: float = 0.8 + 0.4 * mybat.spin
 	var r: Dictionary = solver.solve_serve(p, tgt, sv.speed * lerpf(0.8, 1.1, depth) * (0.9 + 0.2 * mybat.speed),
-		sv.top * k, sv.side * k * hand + swipe_curve * 50.0, sv.cork * k * hand)
+		sv.top * k, sv.side * k * hand + swipe_curve * 170.0, sv.cork * k * hand)
 	bat_fh = not sv.bh
+	my_kind = "serve"
 	begin_toss(0, p, sv, r)
 
+# Turn the swipe into a stroke: bat speed into the ball (a), brushing speed up the face (b), target.
 func _player_try_hit() -> void:
 	var bp := ball.pos
 	if bp.z < 0.2 or bp.y < 0.35:
 		return
 	var assist: bool = DB.opt("assist")
-	var off := absf(bat_pos.x - bp.x)
-	if not assist and off > 0.45:
+	var off_m := absf(bat_pos.x - bp.x)
+	if not assist and off_m > 0.45:
 		return
 	var volley := false
 	if not ref.landed:
@@ -567,44 +586,68 @@ func _player_try_hit() -> void:
 	swipe_used = true
 	var sp := _swipe_params()
 	var pw: float = sp.pw
-	var bs: float = 0.85 + 0.3 * mybat.speed
-	var bsp: float = 0.8 + 0.4 * mybat.spin
 	var bc: float = 1.3 - 0.6 * mybat.control
 	var d_in := Vector3(ball.vel.x, 0, ball.vel.z).normalized()
 	var top_in := ball.spin.dot(Vector3.UP.cross(d_in))
 	var read: float = 0.6 + 0.35 * mybat.control
-	var vh := 0.0
-	var top := 0.0
-	var depth := 0.0
+	var h := bp.y - P.TABLE_Y
+	var a := 0.0
+	var b := 0.0
+	var depth := lerpf(0.55, 1.15, minf(pw, 1.0))
+	var kind := ""
 	if sp.fwd:
-		vh = lerpf(5.0, 14.5, pw) * bs
-		top = lerpf(15.0, 125.0, pw) * bsp
-		depth = lerpf(0.55, 1.2, minf(pw, 1.0))
-		if bp.y > P.TABLE_Y + 0.38 and pw > 0.6:
-			vh *= 1.2
-		if top_in < -25.0:
-			read = 0.92 if pw > 0.55 else 0.45
+		var t := clampf((pw - 0.65) / 0.35, 0.0, 1.0)
+		if pw < 0.3:
+			kind = "TOUCH"
+			a = lerpf(0.4, 2.2, pw / 0.3)
+			b = 1.0
+			depth = lerpf(0.35, 0.7, pw / 0.3)
+		elif pw < 0.65:
+			kind = "DRIVE"
+			a = lerpf(3.0, 6.0, (pw - 0.3) / 0.35)
+			b = lerpf(2.5, 5.0, (pw - 0.3) / 0.35)
+		elif h > 0.32:
+			kind = "SMASH"
+			a = lerpf(9.5, 14.5, t)
+			b = 1.5
+		else:
+			kind = "LOOP"
+			a = lerpf(4.0, 6.5, t)
+			b = lerpf(8.0, 13.0, t)
+		if top_in < -80.0:
+			read = 0.92 if kind == "LOOP" else (0.75 if kind == "SMASH" else 0.45)
 	else:
-		vh = lerpf(3.6, 7.0, pw)
-		top = -lerpf(35.0, 115.0, pw) * bsp
-		depth = lerpf(0.4, 1.1, minf(pw, 1.0))
-		read = 0.97 if top_in < -25.0 else (0.5 if top_in > 25.0 else read)
+		if pw < 0.5:
+			kind = "PUSH"
+			a = lerpf(1.0, 2.2, pw / 0.5)
+			b = -lerpf(2.5, 5.0, pw / 0.5)
+			depth = lerpf(0.35, 0.9, pw / 0.5)
+		else:
+			kind = "CHOP"
+			a = lerpf(2.5, 4.0, (pw - 0.5) / 0.5)
+			b = -lerpf(6.0, 9.5, (pw - 0.5) / 0.5)
+			depth = lerpf(0.7, 1.1, (pw - 0.5) / 0.5)
+		read = 0.97 if top_in < -80.0 else (0.5 if top_in > 80.0 else read)
 	if pw > 1.0:
 		depth += (pw - 1.0) * 2.5
 	var tq := clampf(absf(ball.vel.y) / 3.0, 0.0, 1.0)
 	if tq < 0.2:
-		tip("PERFECT", Color(0.5, 1.0, 0.6))
+		tip(kind + "  ·  PERFECT", Color(0.5, 1.0, 0.6))
 	elif tq > 0.55:
-		tip("EARLY" if ball.vel.y > 0.0 else "LATE", Color(1.0, 0.75, 0.4))
+		tip(kind + ("  ·  EARLY" if ball.vel.y > 0.0 else "  ·  LATE"), Color(1.0, 0.75, 0.4))
+	else:
+		tip(kind, UI.TEXT)
 	var tx := clampf(bp.x * 0.35 + tan(sp.ang) * 1.1, -P.HALF_W - 0.2, P.HALF_W + 0.2)
 	bat_fh = (bp.x - bat_pos.x + 0.15 * hand) * hand >= 0.0 if not assist else bp.x * hand >= -0.15
+	my_kind = kind.to_lower()
 	var sh: Dictionary = solver.strike({
-		p = bp, target = Vector3(tx, P.TABLE_Y, -depth), vh = vh, top = top, side = swipe_curve * 90.0 * bsp,
-		v_in = ball.vel, w_in = ball.spin, read = read,
-		err = P_ERR * bc * (0.6 + ball.vel.length() / 14.0 + vh / 22.0 + 1.2 * tq + (0.0 if assist else off * 0.7)),
+		p = bp, v_in = ball.vel, w_in = ball.spin, target = Vector3(tx, P.TABLE_Y, -depth),
+		a = a, b_up = b, b_side = swipe_curve * 6.0, rub = myrub, read = read,
+		off = clampf(maxf(0.0 if assist else off_m / 0.45, tq * 0.5), 0.0, 1.0),
+		err = P_ERR * bc * (0.6 + ball.vel.length() / 14.0 + a / 12.0 + 1.2 * tq + (0.0 if assist else off_m * 0.7)),
 	}, rng)
 	var res: Dictionary = ref.on_hit(0)
-	_strike(0, sh.vel, sh.spin)
+	_strike(0, sh.vel, sh.spin, my_kind)
 	if volley and not res.is_empty():
 		_end_rally(res)
 
@@ -613,24 +656,26 @@ func _machine_launch() -> void:
 	var place: float = m.get("place", 0.0)
 	if m.get("random", false):
 		place = rng.randf_range(-1.0, 1.0)
-	ball.pos = _hold_pos()
-	var r: Dictionary = solver.solve(ball.pos, Vector3(place * 0.6, P.TABLE_Y, lerpf(0.55, 1.15, m.get("depth", 0.6))),
-		lerpf(4.0, 11.0, m.get("speed", 0.3)), m.get("top", 0.0) * 110.0, m.get("side", 0.0) * 80.0)
+	var p := _hold_pos()
+	var r: Dictionary = solver.solve(p, Vector3(place * 0.6, P.TABLE_Y, lerpf(0.55, 1.15, m.get("depth", 0.6))),
+		lerpf(4.0, 11.0, m.get("speed", 0.3)), m.get("top", 0.0) * 385.0, m.get("side", 0.0) * 280.0)
+	ball.reset(p, Vector3.ZERO, Vector3.ZERO)
 	ref.start(1)
 	ref.on_hit(1)
 	ref.is_serve = false
 	state = S_RALLY
-	_strike(1, r.vel, r.spin)
+	_strike(1, r.vel, r.spin, "drive")
 
+# Swing speed and direction come from the last ~100 ms of finger movement.
 func _update_swipe() -> void:
-	while hist.size() > 0 and now - hist[0][0] > 0.2:
+	while hist.size() > 0 and now - hist[0][0] > 0.22:
 		hist.pop_front()
 	if touch_id < 0 or hist.size() < 3:
 		return
 	var last: Array = hist[-1]
 	var ref_i := 0
 	for i in hist.size():
-		if last[0] - hist[i][0] <= 0.075:
+		if last[0] - hist[i][0] <= 0.1:
 			ref_i = i
 			break
 	var dtt: float = last[0] - hist[ref_i][0]
@@ -652,20 +697,27 @@ func _update_swipe() -> void:
 				swipe_curve = clampf(early.normalized().cross(late.normalized()) * 1.6, -1.0, 1.0)
 		swipe_t = now
 
+# Runs every rendered frame. The bat leads the finger slightly so it never feels late.
 func _update_bat(dt: float) -> void:
 	var vs := get_viewport().get_visible_rect().size
 	var tx := bat_pos.x
 	var tz := P.HALF_L + 0.3
 	if touch_id >= 0:
-		tx = (touch_pos.x / vs.x - 0.5) * 2.3
-		tz = P.HALF_L - 0.2 + clampf((touch_pos.y / vs.y - 0.5) / 0.45, 0.0, 1.0) * 0.9
+		var fp := touch_pos
+		if hist.size() >= 2 and now - hist[-1][0] < 0.05:
+			var h0: Array = hist[maxi(hist.size() - 4, 0)]
+			var hd: float = hist[-1][0] - h0[0]
+			if hd > 0.004:
+				fp += (hist[-1][1] - h0[1]) / hd * 0.03
+		tx = (fp.x / vs.x - 0.5) * 2.3
+		tz = P.HALF_L - 0.2 + clampf((fp.y / vs.y - 0.5) / 0.45, 0.0, 1.0) * 0.9
 	var incoming := state == S_RALLY and ref.hitter == 1
 	if incoming and DB.opt("assist") and assist_on:
 		tx = assist_x + hand * 0.02
 	var ty := P.TABLE_Y + 0.16
 	if incoming and ball.pos.z > 0.4:
 		ty = clampf(ball.pos.y, P.TABLE_Y - 0.2, P.TABLE_Y + 0.9)
-	bat_pos = bat_pos.lerp(Vector3(clampf(tx, -1.25, 1.25), ty, tz), minf(1.0, dt * 22.0))
+	bat_pos = bat_pos.lerp(Vector3(clampf(tx, -1.25, 1.25), ty, tz), minf(1.0, dt * 40.0))
 	if state == S_TOSS and toss_side == 0:
 		# serve-specific wind-up: the bat travels along the serve's swing path into the ball
 		var k := 1.0 - toss_t / toss_T
@@ -701,7 +753,12 @@ func _notification(what: int) -> void:
 
 # ---------- visuals ----------
 func _process(dt: float) -> void:
+	if not paused and state != S_DONE:
+		_update_bat(dt)
+	# render between physics ticks so motion is smooth at any frame rate
 	var bp := ball.pos
+	if (state == S_RALLY or state == S_OVER) and hitstop <= 0.0:
+		bp = ball.prev_pos.lerp(ball.pos, Engine.get_physics_interpolation_fraction())
 	var bt := bat_pos
 	var ox := opp_x
 	var osw := opp_swing
@@ -715,18 +772,20 @@ func _process(dt: float) -> void:
 		osw = f[3]
 		psw = f[4]
 	ball_n.position = bp
-	spin_angle += ball.spin.length() * dt * (0.4 if replay else 1.0)
-	if ball.spin.length() > 1.0:
-		ball_n.basis = Basis(ball.spin.normalized(), spin_angle)
+	var wl := ball.spin.length()
+	if wl > 1.0 and not paused:
+		# true spin axis; rate scaled down so the logo stays readable instead of strobing
+		ball_n.basis = (Basis(ball.spin / wl, wl * dt * 0.1) * ball_n.basis).orthonormalized()
 	var over_table := absf(bp.x) < P.HALF_W and absf(bp.z) < P.HALF_L and bp.y > P.TABLE_Y
 	shadow_n.position = Vector3(bp.x, (P.TABLE_Y if over_table else 0.0) + 0.004, bp.z)
 	if trail.size() > 0 and not paused:
 		trail_pos.push_front(bp)
 		if trail_pos.size() > 9:
 			trail_pos.pop_back()
-		var fast := ball.vel.length() > 2.5 and (state == S_RALLY or state == S_OVER or replay)
+		var live := state == S_RALLY or state == S_OVER or replay
+		var n_vis := clampi(int(ball.vel.length() / 2.2), 0, 8) if live else 0
 		for i in trail.size():
-			trail[i].visible = fast and i + 1 < trail_pos.size()
+			trail[i].visible = i < n_vis and i + 1 < trail_pos.size()
 			if trail[i].visible:
 				trail[i].position = trail_pos[i + 1]
 	var sw := sin(psw * PI)
@@ -751,6 +810,9 @@ func _process(dt: float) -> void:
 		look = Vector3(bt.x * 0.2, 0.8, -0.8)
 	cam.position = cam.position.lerp(cp, minf(1.0, dt * (4.0 if replay else 8.0)))
 	cam.look_at(look)
+	cam.h_offset = randf_range(-1.0, 1.0) * shake
+	cam.v_offset = randf_range(-1.0, 1.0) * shake
+	shake = lerpf(shake, 0.0, minf(1.0, dt * 10.0))
 	cam.fov = 54.0 if replay else 46.0
 	if tip_t > 0.0:
 		tip_t -= dt

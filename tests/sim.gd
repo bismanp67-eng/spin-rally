@@ -1,5 +1,5 @@
 extends SceneTree
-# Balance simulation: godot --headless -s tests/sim.gd -- [games_per_pair]
+# Balance simulation: godot --headless -s tests/sim.gd -- [games_per_pair] [only_pair 1..5]
 # Each level plays the level below with the same neutral character and bat.
 const Sim := preload("res://scripts/core/simmatch.gd")
 const DBS := preload("res://scripts/core/db.gd")
@@ -14,7 +14,10 @@ func _init() -> void:
 	var bat: Dictionary = DBS.find(DBS.load_json("bats"), "allround_classic")
 	var serves := DBS.load_json("serves")
 	var all_ok := true
+	var only := int(args[1]) if args.size() > 1 else 0
 	for i in range(1, levels.size()):
+		if only > 0 and i != only:
+			continue
 		var sim := Sim.new()
 		var wins := 0
 		var t0 := Time.get_ticks_msec()

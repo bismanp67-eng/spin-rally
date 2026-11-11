@@ -2,21 +2,20 @@ extends RefCounted
 # Shot solver: finds launch velocities that land the ball on a target, using the real physics.
 const P := preload("res://scripts/core/physics.gd")
 var s := P.new()
+const READ_K := 0.35  # how strongly a poor spin read turns into a wrong bat angle
 
 # Spin for a ball travelling along horizontal unit dir d. top>0 topspin, side about the vertical, cork along travel.
 static func spin_vec(d: Vector3, top: float, side: float, cork: float = 0.0) -> Vector3:
-	return Vector3.UP.cross(d) * top + Vector3.UP * side + d * cork
+	# real sidespin axes are tilted, which is what makes the ball kick sideways off the bounce
+	return Vector3.UP.cross(d) * top + Vector3.UP * side + d * (cork - 0.4 * side)
 
 # Fly until the ball reaches table height (serve: the second time). land = point reached.
 func fly(p: Vector3, v: Vector3, w: Vector3, serve: bool = false) -> Dictionary:
-	s.pos = p
-	s.vel = v
-	s.spin = w
-	s.events.clear()
+	s.reset(p, v, w)
 	var res := {ok = false, net = false, land = p, first_ok = not serve, t = 0.0}
 	var from_side := 0 if p.z > 0.0 else 1
 	var need_first := serve
-	for i in 420:
+	for i in 900:
 		s.step()
 		var hit_table := false
 		for ev in s.events:
@@ -35,6 +34,9 @@ func fly(p: Vector3, v: Vector3, w: Vector3, serve: bool = false) -> Dictionary:
 					return res
 			elif ev.t == "net" or ev.t == "cord":
 				res.net = true
+			elif ev.t == "side":
+				res.land = ev.pos
+				return res
 		s.events.clear()
 		if not hit_table and s.vel.y < 0.0 and s.pos.y < P.TABLE_Y + P.R:
 			res.land = s.pos
@@ -143,25 +145,120 @@ func solve_serve(p: Vector3, target: Vector3, vh: float, top: float, side: float
 	out.spin = spin_vec(df, top, side, cork)
 	return out
 
-# Full stroke with human error. o: {p, target, vh, top, side, cork, v_in, w_in, read, err, gross}
-# read 0..1 = how well incoming spin is compensated, err = aim noise (m), gross = chance of a bad miss.
+# Rubber properties from a bat's 0..1 stats.
+static func rubber(bat: Dictionary) -> Dictionary:
+	return {e = 0.66 + 0.22 * bat.speed, ct = 0.30 + 0.34 * bat.spin, mu = 0.35 + 0.75 * bat.spin}
+
+# Bat-ball contact impulse. v, w: ball velocity and spin before contact. vb: bat velocity.
+# n: unit normal of the bat face (pointing where the face looks). off: 0 sweet spot .. 1 edge.
+# Returns [velocity, spin] after contact.
+static func impact(v: Vector3, w: Vector3, vb: Vector3, n: Vector3, rub: Dictionary, off: float = 0.0) -> Array:
+	var u := v - vb
+	var un := minf(u.dot(n), -0.05)
+	var e: float = maxf(rub.e - 0.006 * absf(un), 0.4) * (1.0 - 0.45 * off * off)
+	var ut := u - n * u.dot(n)
+	var slip := ut - w.cross(n) * P.R
+	var dvt: Vector3 = -slip * rub.ct
+	var lim: float = rub.mu * (1.0 + e) * absf(un)
+	if dvt.length() > lim:
+		dvt = dvt.normalized() * lim
+	return [vb + ut + dvt - n * (e * un), w - n.cross(dvt) * (1.5 / P.R)]
+
+# Find the bat face angle (and, if needed, a different swing speed) that lands the ball on target.
+# a: bat speed along the face normal, b_up / b_side: brushing speed across the face (m/s).
+# w_seen is the incoming spin as the hitter perceives it.
+func solve_swing(p: Vector3, v_in: Vector3, w_seen: Vector3, target: Vector3, a: float, b_up: float, b_side: float, rub: Dictionary) -> Dictionary:
+	var aim := target
+	var out := {n = Vector3.FORWARD, vb = Vector3.ZERO, ok = false}
+	var th := 0.15
+	var step := 0.12
+	for attempt in 12:
+		var d := Vector3(aim.x - p.x, 0.0, aim.z - p.z)
+		var dist := d.length()
+		d /= dist
+		var right := d.cross(Vector3.UP)
+		# bracket the face angle between "short / into the net" (lo) and "long" (hi), then close in
+		var lo := -9.0
+		var hi := 9.0
+		var elo := -1.0
+		var ehi := 1.0
+		var lo_net := false
+		var fail := 0  # 1 = too fast to land, 2 = too slow to reach
+		var r := {}
+		var n := d
+		var vb := d
+		for i in 18:
+			n = d * cos(th) + Vector3.UP * sin(th)
+			vb = n * a + (Vector3.UP * cos(th) - d * sin(th)) * b_up + right * b_side
+			var io := impact(v_in, w_seen, vb, n, rub)
+			r = fly(p, io[0], io[1])
+			var err: float = (r.land - p).dot(d) - dist
+			if r.net or err < 0.0:
+				lo = th
+				lo_net = r.net
+				elo = minf(err, -0.02)
+			else:
+				hi = th
+				ehi = maxf(err, 0.02)
+			if not r.net and absf(err) < 0.012:
+				break
+			if lo > -9.0 and hi < 9.0:
+				if hi - lo < 0.0012:
+					if lo_net:
+						fail = 1
+					else:
+						th = hi
+					break
+				th = (lo + hi) * 0.5 if lo_net else lo + (hi - lo) * clampf(-elo / (ehi - elo), 0.12, 0.88)
+			elif hi >= 9.0:
+				th += step
+				step *= 1.6
+				if th > 1.15:
+					fail = 2
+					break
+			else:
+				th -= step
+				step *= 1.6
+				if th < -0.9:
+					fail = 1
+					break
+		out.n = n
+		out.vb = vb
+		step = 0.03
+		if fail == 1:
+			a *= 0.86
+			b_up *= 0.96
+			th = clampf(th, -0.3, 0.6)
+			step = 0.08
+			continue
+		if fail == 2:
+			a = a * 1.2 + 0.6
+			th = 0.3
+			step = 0.1
+			continue
+		var lat: Vector3 = r.land - target
+		lat.y = 0.0
+		lat -= d * lat.dot(d)
+		out.ok = r.ok
+		if lat.length() < 0.025:
+			return out
+		aim -= lat * 0.95
+	return out
+
+# Full stroke with human error. o: {p, v_in, w_in, target, a, b_up, b_side, rub, read, err, gross, off}
+# read 0..1 = how well incoming spin is judged, err = aim noise (m), gross = chance of a mishit,
+# off = contact distance from the sweet spot (0..1). Returns {vel, spin, n, vb}.
 func strike(o: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
-	var p: Vector3 = o.p
 	var tgt: Vector3 = o.target
 	var e: float = o.get("err", 0.0)
 	tgt.x += rng.randfn(0.0, e)
 	tgt.z += rng.randfn(0.0, e * 1.3)
-	var r := solve(p, tgt, o.vh, o.top, o.get("side", 0.0), o.get("cork", 0.0))
-	var v: Vector3 = r.vel
 	var w_in: Vector3 = o.get("w_in", Vector3.ZERO)
-	var v_in: Vector3 = o.get("v_in", Vector3.ZERO)
-	var d_in := Vector3(v_in.x, 0.0, v_in.z)
-	if d_in.length() > 0.1 and w_in.length() > 1.0:
-		d_in = d_in.normalized()
-		var miss: float = (1.0 - o.get("read", 1.0)) * rng.randf_range(0.35, 1.0)
-		var top_in := w_in.dot(Vector3.UP.cross(d_in))
-		v.y += top_in * 0.011 * miss
-		v = v.rotated(Vector3.UP, -w_in.y * 0.0022 * miss * signf(v.z))
+	var miss: float = (1.0 - o.get("read", 1.0)) * rng.randf_range(0.35, 1.0) * READ_K
+	var sw := solve_swing(o.p, o.v_in, w_in * (1.0 - miss), tgt, o.a, o.b_up, o.get("b_side", 0.0), o.rub)
+	var n: Vector3 = sw.n
 	if rng.randf() < o.get("gross", 0.0):
-		v.y += rng.randf_range(0.5, 1.4) * (1.0 if rng.randf() < 0.5 else -1.0)
-	return {vel = v, spin = r.spin}
+		var axis := n.cross(Vector3.UP).normalized()
+		n = n.rotated(axis, rng.randf_range(0.07, 0.2) * (1.0 if rng.randf() < 0.5 else -1.0))
+	var io := impact(o.v_in, w_in, sw.vb, n, o.rub, o.get("off", 0.0))
+	return {vel = io[0], spin = io[1], n = n, vb = sw.vb}

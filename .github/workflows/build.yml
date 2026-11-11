@@ -16,8 +16,16 @@ jobs:
           mkdir -p ~/.local/share/godot/export_templates ~/.config
           [ -d ~/.config/godot ] || cp -r /root/.config/godot ~/.config/godot || true
           [ -d ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable ] || cp -r /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/
-          if [ -f /root/debug.keystore ]; then echo KS_PRESENT; echo "KSB64:$(base64 -w0 /root/debug.keystore)"; else echo KS_ABSENT; fi
           [ -f /root/debug.keystore ] || keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android -keystore /root/debug.keystore -storepass android -dname "CN=Android Debug,O=Android,C=US" -validity 9999
+      - name: Pin signing key
+        # One fixed debug keystore lives in the repo (personal use only) so every APK installs over the last.
+        run: |
+          git config --global --add safe.directory "$PWD"
+          if [ ! -f ci/debug.keystore ]; then
+            mkdir -p ci && cp /root/debug.keystore ci/debug.keystore
+            git config user.name "spin-rally-ci" && git config user.email "ci@users.noreply.github.com"
+            git add -f ci/debug.keystore && git commit -m "CI: pin debug keystore" && git push origin HEAD:refs/heads/${GITHUB_REF_NAME} || echo "PIN_PUSH_FAILED"
+          fi
       - name: Import
         run: godot --headless --import || true
       - name: Tests
@@ -25,11 +33,11 @@ jobs:
           if [ -f tests/run_tests.gd ]; then godot --headless -s tests/run_tests.gd; fi
       - name: Export APK
         env:
-          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: /root/debug.keystore
           GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
           GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           mkdir -p build
+          export GODOT_ANDROID_KEYSTORE_DEBUG_PATH="$PWD/ci/debug.keystore"
           godot --headless --export-debug "Android" build/SpinRally.apk
           ls -la build
           test -s build/SpinRally.apk

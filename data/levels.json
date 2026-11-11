@@ -1,8 +1,8 @@
 [
-{"id": "rookie", "name": "Rookie", "reaction": 0.4, "pos_err": 0.12, "place_err": 0.21, "spin_read": 0.5, "serves": 3, "spin": 0.5, "aggression": 0.15, "mistake": 0.06, "serve_fault": 0.06, "speed": 2.4, "power": 0.65, "aim": 0.1},
-{"id": "amateur", "name": "Amateur", "reaction": 0.34, "pos_err": 0.1, "place_err": 0.185, "spin_read": 0.6, "serves": 5, "spin": 0.6, "aggression": 0.28, "mistake": 0.048, "serve_fault": 0.045, "speed": 2.7, "power": 0.72, "aim": 0.25},
-{"id": "club", "name": "Club", "reaction": 0.29, "pos_err": 0.085, "place_err": 0.17, "spin_read": 0.67, "serves": 7, "spin": 0.7, "aggression": 0.42, "mistake": 0.043, "serve_fault": 0.035, "speed": 3.0, "power": 0.79, "aim": 0.42},
-{"id": "pro", "name": "Pro", "reaction": 0.25, "pos_err": 0.07, "place_err": 0.155, "spin_read": 0.76, "serves": 9, "spin": 0.8, "aggression": 0.55, "mistake": 0.035, "serve_fault": 0.025, "speed": 3.3, "power": 0.86, "aim": 0.58},
-{"id": "elite", "name": "Elite", "reaction": 0.21, "pos_err": 0.058, "place_err": 0.14, "spin_read": 0.84, "serves": 11, "spin": 0.9, "aggression": 0.68, "mistake": 0.029, "serve_fault": 0.018, "speed": 3.6, "power": 0.93, "aim": 0.74},
-{"id": "legend", "name": "Legend", "reaction": 0.18, "pos_err": 0.048, "place_err": 0.13, "spin_read": 0.9, "serves": 12, "spin": 1.0, "aggression": 0.8, "mistake": 0.0255, "serve_fault": 0.012, "speed": 3.9, "power": 1.0, "aim": 0.88}
+{"id": "rookie", "name": "Rookie", "reaction": 0.341, "pos_err": 0.095, "place_err": 0.184, "spin_read": 0.589, "serves": 3, "spin": 0.55, "aggression": 0.2, "mistake": 0.048, "serve_fault": 0.05, "speed": 2.6, "power": 0.7, "aim": 0.15},
+{"id": "amateur", "name": "Amateur", "reaction": 0.31, "pos_err": 0.087, "place_err": 0.177, "spin_read": 0.651, "serves": 5, "spin": 0.64, "aggression": 0.32, "mistake": 0.042, "serve_fault": 0.04, "speed": 2.85, "power": 0.76, "aim": 0.29},
+{"id": "club", "name": "Club", "reaction": 0.279, "pos_err": 0.079, "place_err": 0.172, "spin_read": 0.706, "serves": 7, "spin": 0.73, "aggression": 0.44, "mistake": 0.041, "serve_fault": 0.03, "speed": 3.1, "power": 0.82, "aim": 0.43},
+{"id": "pro", "name": "Pro", "reaction": 0.256, "pos_err": 0.071, "place_err": 0.161, "spin_read": 0.76, "serves": 9, "spin": 0.82, "aggression": 0.56, "mistake": 0.037, "serve_fault": 0.022, "speed": 3.4, "power": 0.88, "aim": 0.57},
+{"id": "elite", "name": "Elite", "reaction": 0.232, "pos_err": 0.063, "place_err": 0.153, "spin_read": 0.815, "serves": 11, "spin": 0.91, "aggression": 0.68, "mistake": 0.034, "serve_fault": 0.016, "speed": 3.65, "power": 0.94, "aim": 0.71},
+{"id": "legend", "name": "Legend", "reaction": 0.209, "pos_err": 0.056, "place_err": 0.142, "spin_read": 0.875, "serves": 12, "spin": 1.0, "aggression": 0.8, "mistake": 0.029, "serve_fault": 0.012, "speed": 3.9, "power": 1.0, "aim": 0.85}
 ]

@@ -128,11 +128,11 @@ func play(n: String, pitch: float = 1.0, vol: float = 1.0) -> void:
 
 # Bat contact: more spin = brushier and lower.
 func hit(speed: float, spin: float) -> void:
-	var s := clampf(spin / 120.0, 0.0, 1.0)
+	var s := clampf(spin / 450.0, 0.0, 1.0)
 	play("brush" if s > 0.55 else "hit", lerpf(1.15, 0.8, s) + speed * 0.01, 0.5 + speed / 20.0)
 
 func bounce(surface: String, speed: float, spin: float) -> void:
-	play(surface if streams.has(surface) else "wood", 1.0 + clampf(spin / 400.0, 0.0, 0.25), 0.35 + speed / 8.0)
+	play(surface if streams.has(surface) else "wood", 1.0 + clampf(spin / 1500.0, 0.0, 0.25), 0.35 + speed / 8.0)
 
 func crowd(kind: String, amount: float) -> void:
 	if amount <= 0.02:

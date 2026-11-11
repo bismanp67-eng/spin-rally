@@ -12,6 +12,9 @@ var bots: Array = []
 var rng := RandomNumberGenerator.new()
 var shots := 0
 var points := 0
+var last := {}
+var last_hits := 0
+var last_kind := ""
 
 func setup(defs: Array, lvls: Array, bats: Array, serves: Array, seed_: int) -> void:
 	rng.seed = seed_
@@ -30,14 +33,11 @@ func play_point(server: int) -> int:
 			b.x = 0.0
 			b.goal_x = 0.0
 		var sv: Dictionary = bots[server].serve()
-		ball.pos = sv.p
-		ball.vel = sv.vel
-		ball.spin = sv.spin
-		ball.events.clear()
+		ball.reset(sv.p, sv.vel, sv.spin)
 		ref.on_hit(server)
 		bots[1 - server].on_incoming(ball.pos, ball.vel, ball.spin, true)
 		var res := {}
-		for i in 3600:
+		for i in 7200:
 			ball.step()
 			for ev in ball.events:
 				res = ref.on_event(ev)
@@ -54,7 +54,10 @@ func play_point(server: int) -> int:
 					ball.vel = sh.vel
 					ball.spin = sh.spin
 					ref.on_hit(b.side)
+					last_kind = sh.kind
 					o.on_incoming(ball.pos, ball.vel, ball.spin, false)
+		last = res
+		last_hits = ref.hits
 		if res.has("winner"):
 			return res.winner
 		if not res.has("let"):

@@ -16,6 +16,7 @@ var goal_x := 0.0
 var react := 0.0
 var done := true
 var last_kind := ""
+var rub := {}
 
 func setup(side_: int, lvl_: Dictionary, def: Dictionary, bat_: Dictionary, all_serves: Array, rng_: RandomNumberGenerator, solver_) -> void:
 	side = side_
@@ -26,6 +27,7 @@ func setup(side_: int, lvl_: Dictionary, def: Dictionary, bat_: Dictionary, all_
 	hand = -1.0 if def.hand == "L" else 1.0
 	rng = rng_
 	solver = solver_
+	rub = solver.rubber(bat_)
 	var ordered: Array = []
 	for id in def.fav:
 		for sv in all_serves:
@@ -44,12 +46,9 @@ func on_incoming(p: Vector3, v: Vector3, w: Vector3, is_serve: bool) -> void:
 	done = false
 	react = lvl.reaction * (1.3 if is_serve else 1.0)
 	var s: RefCounted = solver.s
-	s.pos = p
-	s.vel = v
-	s.spin = w
-	s.events.clear()
+	s.reset(p, v, w)
 	var mine := false
-	for i in 300:
+	for i in 600:
 		s.step()
 		for ev in s.events:
 			if ev.t == "table" and ev.side == side:
@@ -80,51 +79,49 @@ func tick(dt: float, bp: Vector3, bv: Vector3, bw: Vector3, incoming: bool, opp_
 	var h := bp.y - P.TABLE_Y
 	var sp_in := bv.length()
 	var stretch := off / REACH
-	var a := clampf(lvl.aggression * st.aggr, 0.0, 1.0)
-	var bs: float = 0.85 + 0.3 * bat.speed
-	var bsp: float = (0.8 + 0.4 * bat.spin) * lvl.spin * st.spin
+	var ag := clampf(lvl.aggression * st.aggr, 0.0, 1.0)
+	var k: float = lvl.spin * st.spin
 	var bc: float = 1.3 - 0.6 * bat.control
-	var pw: float = lvl.power * st.power * bs
-	var vh := 8.0
-	var top := 55.0
+	var pw: float = lvl.power * st.power
+	# stroke = bat speed into the ball (a) and brushing speed up the face (b)
+	var a := 3.6 * pw
+	var b := 3.0 * k
 	var depth := 0.7
 	var r := rng.randf()
-	if h > 0.32 and r < 0.45 + a * 0.5:
+	if h > 0.32 and r < 0.45 + ag * 0.5:
 		last_kind = "smash"
-		vh = 15.0 * pw
-		top = 25.0
+		a = 13.0 * pw
+		b = 1.5
 		depth = 0.75
-	elif top_in < -30.0 and r >= a * 0.8:
+	elif top_in < -90.0 and r >= ag * 0.8:
 		last_kind = "push"
-		vh = 4.6
-		top = -70.0 * bsp
+		a = 1.6
+		b = -4.0 * k
 		depth = 0.6
-	elif top_in < -30.0:
+	elif top_in < -90.0:
 		last_kind = "loop"
-		vh = 8.5 * pw
-		top = 115.0 * bsp
+		a = 4.2 * pw
+		b = 10.5 * k
 		depth = 0.8
 	elif r < st.chop:
 		last_kind = "chop"
-		vh = 7.0
-		top = -95.0 * bsp
+		a = 3.2
+		b = -8.0 * k
 		depth = 0.75
-	elif r < st.chop + a:
+	elif r < st.chop + ag:
 		last_kind = "drive"
-		vh = 11.0 * pw
-		top = 90.0 * bsp
-		depth = 0.85
-	elif r < st.chop + a + st.block * 0.5:
+		a = 5.6 * pw
+		b = 5.0 * k
+		depth = 0.78
+	elif r < st.chop + ag + st.block * 0.5:
 		last_kind = "block"
-		vh = 6.5
-		top = 15.0
+		a = 0.8
+		b = 0.5
 		depth = 0.6
 	else:
 		last_kind = "rally"
-		vh = 8.0 * pw
-		top = 55.0 * bsp
 	if h < 0.07 and bp.z * sgn < P.HALF_L:
-		vh = minf(vh, 6.5)
+		a = minf(a, 2.6)
 	var wmax: float = P.HALF_W * (0.45 + 0.45 * lvl.aim)
 	var tx := rng.randf_range(-wmax, wmax) * 0.7
 	if rng.randf() < lvl.aim:
@@ -132,10 +129,10 @@ func tick(dt: float, bp: Vector3, bv: Vector3, bw: Vector3, incoming: bool, opp_
 		tx = away * wmax * rng.randf_range(0.6, 1.0)
 	var tz: float = -sgn * lerpf(0.5, 1.15, depth * (0.75 + 0.25 * lvl.aim))
 	var sh: Dictionary = solver.strike({
-		p = bp, target = Vector3(tx, P.TABLE_Y, tz), vh = vh, top = top,
-		side = st.side * 70.0 * lvl.spin * rng.randf_range(-1.0, 1.0),
-		v_in = bv, w_in = bw, read = minf(lvl.spin_read + st.get("read", 0.0), 0.99),
-		err = lvl.place_err * bc * (0.6 + sp_in / 14.0 + stretch * 0.7 + vh / 22.0),
+		p = bp, v_in = bv, w_in = bw, target = Vector3(tx, P.TABLE_Y, tz), a = a, b_up = b,
+		b_side = st.side * 4.0 * lvl.spin * rng.randf_range(-1.0, 1.0), rub = rub,
+		read = minf(lvl.spin_read + st.get("read", 0.0), 0.99), off = stretch * 0.6,
+		err = lvl.place_err * bc * (0.6 + sp_in / 14.0 + stretch * 0.7 + a / 12.0),
 		gross = lvl.mistake * (0.5 + sp_in / 10.0 + stretch),
 	}, rng)
 	sh.kind = last_kind

@@ -153,7 +153,7 @@ func start_tutorial() -> void:
 		mk.call("Drag: the bat follows your finger.\nSwipe UP as the ball arrives. Return 2.", easy, {type = "shots", need = 2}),
 		mk.call("A faster swipe hits harder and deeper.\nHit 2 strong returns.", easy, {type = "shots", need = 2, min_speed = 8.5}),
 		mk.call("Swipe at an angle to aim.\nLand 2 in the yellow zone.", easy, {type = "shots", need = 2, zone = [-0.77, -0.05, 0.3, 1.38]}),
-		mk.call("Swipe DOWN (toward you) to chop with backspin.\nPush backspin balls back, or loop them hard. Chop 2.", {speed = 0.15, top = -0.5, interval = 1.4}, {type = "shots", need = 2, max_top = -25}),
+		mk.call("Swipe DOWN (toward you) to chop with backspin.\nPush backspin balls back, or loop them hard. Chop 2.", {speed = 0.15, top = -0.5, interval = 1.4}, {type = "shots", need = 2, max_top = -60}),
 		{feed = "serve", text = "Your serve! Tap the Serve button to choose,\nthen swipe up. Land 2 serves.", goal = {type = "shots", need = 2}},
 	]}, func(_r):
 		DB.save.tutorial_done = true)

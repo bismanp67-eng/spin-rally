@@ -60,7 +60,7 @@ func on_event(ev: Dictionary) -> Dictionary:
 				over = true
 				return {let = true}
 			landed = true
-		"floor":
+		"floor", "side":
 			if landed:
 				return _end(hitter, "winner")
 			return _end(recv, "net" if net_touched else "out")
