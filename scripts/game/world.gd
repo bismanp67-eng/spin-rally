@@ -409,6 +409,8 @@ const POSES := {
 	"block": [[-0.8, 0.2, 1.5, 0.0], [-1.0, 0.1, 1.2, -0.05]],
 	"chop": [[-2.0, 0.45, 1.6, 0.4], [-0.35, 0.0, 0.3, -0.25]],
 	"serve": [[-0.3, 0.9, 1.5, 0.5], [-1.2, -0.5, 1.2, -0.35]],
+	"cheer": [[-2.9, 0.35, 0.5, 0.0], [-2.9, 0.35, 0.5, 0.0]],
+	"slump": [[0.05, 0.1, 0.15, 0.0], [0.05, 0.1, 0.15, 0.0]],
 }
 
 # prep 0..1 = backswing readiness, swing 1..0 = time since contact (1 at contact), move = sideways speed,
@@ -431,7 +433,7 @@ static func pose(ch: Node3D, kind: String, prep: float, swing: float, move: floa
 	var bob := sin(t * 5.0) * 0.012 + absf(move) * 0.01
 	var crouch := 0.32 + bob * 2.0 + prep * 0.1
 	p.hips.position.y = 0.86 - 0.06 - prep * 0.03 + bob
-	p.torso.rotation = Vector3(0.3 + prep * 0.08, cur[3] * hand, -clampf(move, -1.0, 1.0) * 0.12)
+	p.torso.rotation = Vector3((0.3 if kind != "slump" else 0.3 + prep * 0.35) + prep * 0.08 - (prep * 0.35 if kind == "cheer" else 0.0), cur[3] * hand, -clampf(move, -1.0, 1.0) * 0.12)
 	p.head.rotation = Vector3(-0.25, -cur[3] * hand * 0.7, 0)
 	p.sh.rotation = Vector3(cur[0], 0.0, cur[1] * hand)
 	p.el.rotation = Vector3(-cur[2], 0.0, 0.0)

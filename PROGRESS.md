@@ -4,11 +4,14 @@
 - [x] v2.0 Checkpoint 2: high-end visuals and quality presets
 - [x] v2.0 Checkpoint 3: design system, menus, scoreboard, audio
 - [x] v2.0 Checkpoint 4: screenshot review passes, balance re-run (BALANCE.md), docs
+- [x] v2.1: geometric bat + assist levels, serves and machine through physics, faked AO and arena lighting pass, 2048 px key textures on High, great-rally replays
+- [~] v2.1: character detail (only point reactions added)
 
 ## How to verify
 - Unit + physics tests: `godot --headless -s tests/run_tests.gd`
 - Balance: `godot --headless -s tests/sim.gd -- 200`
 - Autoplay smoke test of every mode: `godot --headless --fixed-fps 30 -s tests/smoke.gd`
+- All arenas: see the header of `tests/arenas.gd`
 - Screenshot tour (needs xvfb and a Vulkan driver): see the header of `tests/shots.gd`
 
 ## Next

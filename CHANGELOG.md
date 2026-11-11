@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.1 - real bat
+- The bat is a real object: it follows the finger every physics step and the ball is hit only when the swept ball meets the moving blade. Contact point (sweet spot or edge) feeds the impulse model; edge hits are weaker and deflect.
+- Assist setting: Off (pure physics, true blade size), Light (default), Strong. Holding the bat still in the ball's path now blocks.
+- Bots use the same blade geometry and sweep test.
+- Serves: real toss, then the bat strikes the falling ball through the impulse model; each serve is a bat path, and spin comes out of the contact. Bots serve the same way.
+- Ball machine: wheel-style speed and spin.
+- Faked ambient occlusion (crease strips, contact blobs), softer shadows, lighting pass over all ten arenas, brighter menu backdrop.
+- 2048 px table normal map, bat and ball textures on High.
+- Slow-motion replays for great points (long rallies, 25 m/s+ shots, edge and net-cord points, deep retrieves), at most once every 3 points.
+- Opponents react to each point (cheer or slump).
+- New tests: bat reach, 35 m/s swing tunnelling, edge contact, every serve type.
+
 ## 2.0 - premium upgrade
 **Physics and feel**
 - Ball simulation rewritten: 240 Hz, drag with Cd 0.45, Magnus lift from spin ratio, spin decay, speed-dependent restitution, spin-aware friction on every surface.

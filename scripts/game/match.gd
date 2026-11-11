@@ -80,6 +80,7 @@ var rally_fast := 0.0
 var special_hit := -1
 var rally_retrieve := false
 var since_replay := 3
+var last_winner := 0
 var shake := 0.0
 var tick_i := 0
 var myrub := {}
@@ -437,6 +438,7 @@ func _end_rally(res: Dictionary) -> void:
 		flash("LET", 1.2, Color(1, 0.9, 0.3))
 		return
 	var w: int = res.winner
+	last_winner = w
 	var reason: String = res.reason
 	var ace := w == 0 and ref.hits == 1 and server == 0 and feed == "match"
 	var txt := ""
@@ -857,7 +859,12 @@ func _process(dt: float) -> void:
 		var serving := state == S_TOSS and toss_side == 1
 		var tossk := toss_t / maxf(toss_T, 0.01)
 		var prep := clampf((0.6 - bp.z) / 1.6, 0.0, 1.0) if (state == S_RALLY and ref.hitter == 0) else (tossk if serving else 0.0)
-		World.pose(opp_n, "serve" if serving else opp_kind, prep, osw, opp_move, clock, sin(tossk * PI) if serving else 0.0)
+		if state == S_OVER and not was_let and state_t > 0.35 and feed == "match":
+			# reaction to the point: fist up or shoulders down
+			var react := clampf((state_t - 0.35) * 4.0, 0.0, 1.0)
+			World.pose(opp_n, "cheer" if last_winner == 1 else "slump", react, 0.0, 0.0, clock, react * 0.8 if last_winner == 1 else 0.0)
+		else:
+			World.pose(opp_n, "serve" if serving else opp_kind, prep, osw, opp_move, clock, sin(tossk * PI) if serving else 0.0)
 	if crowd_mat:
 		excite = lerpf(excite, 0.0, minf(1.0, dt * 0.9))
 		crowd_mat.set_shader_parameter("excite", excite)
