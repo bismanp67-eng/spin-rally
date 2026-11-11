@@ -36,6 +36,7 @@ func _process(_dt: float) -> bool:
 		return false
 	t_in += 1
 	g.swipe_used = false
+	g.autoplay = true
 	var serve_now: bool = g.state == 0 and g.server == 0
 	var hit_now: bool = g.state == 2 and g.ref.hitter == 1 and g.ref.landed and (g.ball.pos.z > 1.2 or g.ball.vel.y < 0.0)
 	if serve_now or hit_now:

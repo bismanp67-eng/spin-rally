@@ -7,6 +7,7 @@ const Rally := preload("res://scripts/core/rally.gd")
 const Rules := preload("res://scripts/core/rules.gd")
 const Bot := preload("res://scripts/core/bot.gd")
 const World := preload("res://scripts/game/world.gd")
+const Bat := preload("res://scripts/core/bat.gd")
 const UI := preload("res://scripts/ui/ui.gd")
 signal finished(result: Dictionary)
 enum {S_WAIT, S_TOSS, S_RALLY, S_OVER, S_REPLAY, S_DONE}
@@ -60,6 +61,10 @@ var swipe_curve := 0.0
 var swipe_used := false
 var assist_x := 0.0
 var assist_on := false
+var assist_lv := 1
+var autoplay := false
+var bat_prev := Vector3(0, P.TABLE_Y + 0.15, P.HALF_L + 0.25)
+var bat_vel := Vector3.ZERO
 # view state (live or replay)
 var bat_pos := Vector3(0, P.TABLE_Y + 0.15, P.HALF_L + 0.25)
 var bat_swing := 0.0
@@ -119,6 +124,7 @@ func _ready() -> void:
 	mybat = DB.my_bat()
 	myrub = Shot.rubber(mybat)
 	hand = -1.0 if DB.opt("lefty") else 1.0
+	assist_lv = clampi(int(DB.opt("assist_lv")), 0, 2)
 	table_def = DB.find(DB.tables, DB.save.equip.table)
 	arena_def = DB.find(DB.arenas, DB.save.equip.arena)
 	ball.e_table = table_def.e
@@ -317,6 +323,7 @@ func _physics_process(dt: float) -> void:
 		return
 	now += dt
 	_update_swipe()
+	_update_bat(dt)
 	if hitstop > 0.0:
 		# hit-stop: freeze the world for a few frames on hard contact
 		hitstop -= dt
@@ -362,8 +369,11 @@ func _physics_process(dt: float) -> void:
 					if sh.has("vel"):
 						ref.on_hit(1)
 						_strike(1, sh.vel, sh.spin, sh.kind)
-				if fresh and ref.hitter == 1:
-					_player_try_hit()
+				if ref.hitter == 1:
+					# swept ball against the moving bat: contact only when they really touch
+					var hit := Bat.sweep(ball.prev_pos, ball.pos - ball.prev_pos, bat_prev, bat_pos - bat_prev, Vector3(0, 0, -1), Bat.BLADE_R * [1.0, 1.9, 3.0][assist_lv])
+					if not hit.is_empty():
+						_player_contact(hit)
 			elif state_t > 1.5:
 				_after_point()
 		S_REPLAY:
@@ -580,22 +590,18 @@ func _player_serve() -> void:
 	my_kind = "serve"
 	begin_toss(0, p, sv, r)
 
-# Turn the swipe into a stroke: bat speed into the ball (a), brushing speed up the face (b), target.
-func _player_try_hit() -> void:
+# The ball has physically met the bat (hit = contact from Bat.sweep). The stroke comes from the
+# finger's recent movement; with no swing the bat simply blocks.
+func _player_contact(hit: Dictionary) -> void:
 	var bp := ball.pos
-	if bp.z < 0.2 or bp.y < 0.35:
-		return
-	var assist: bool = DB.opt("assist")
-	var off_m := absf(bat_pos.x - bp.x)
-	if not assist and off_m > 0.45:
+	if not hit.front or bp.y < 0.3:
 		return
 	var volley := false
 	if not ref.landed:
-		if bp.z < 0.5 or bp.z > P.HALF_L or bp.y > P.TABLE_Y + 0.6:
-			return
-		if (bp.y - P.TABLE_Y - P.R) / maxf(-ball.vel.y, 0.1) < 0.14:
-			return
+		if bp.z > P.HALF_L:
+			return  # already flying long: touching it behind the table is not a fault, let it go out
 		volley = true
+	var swung := now - swipe_t < 0.3
 	swipe_used = true
 	var sp := _swipe_params()
 	var pw: float = sp.pw
@@ -608,7 +614,14 @@ func _player_try_hit() -> void:
 	var b := 0.0
 	var depth := lerpf(0.55, 1.15, minf(pw, 1.0))
 	var kind := ""
-	if sp.fwd:
+	var ang: float = sp.ang
+	if not swung:
+		kind = "BLOCK"
+		a = clampf(-bat_vel.z, 0.0, 2.0) + 0.3
+		b = 0.5
+		depth = 0.65
+		ang = 0.0
+	elif sp.fwd:
 		var t := clampf((pw - 0.65) / 0.35, 0.0, 1.0)
 		if pw < 0.3:
 			kind = "TOUCH"
@@ -641,23 +654,19 @@ func _player_try_hit() -> void:
 			b = -lerpf(6.0, 9.5, (pw - 0.5) / 0.5)
 			depth = lerpf(0.7, 1.1, (pw - 0.5) / 0.5)
 		read = 0.97 if top_in < -80.0 else (0.5 if top_in > 80.0 else read)
-	if pw > 1.0:
+	if swung and pw > 1.0:
 		depth += (pw - 1.0) * 2.5
 	var tq := clampf(absf(ball.vel.y) / 3.0, 0.0, 1.0)
-	if tq < 0.2:
-		tip(kind + "  ·  PERFECT", Color(0.5, 1.0, 0.6))
-	elif tq > 0.55:
-		tip(kind + ("  ·  EARLY" if ball.vel.y > 0.0 else "  ·  LATE"), Color(1.0, 0.75, 0.4))
-	else:
-		tip(kind, UI.TEXT)
-	var tx := clampf(bp.x * 0.35 + tan(sp.ang) * 1.1, -P.HALF_W - 0.2, P.HALF_W + 0.2)
-	bat_fh = (bp.x - bat_pos.x + 0.15 * hand) * hand >= 0.0 if not assist else bp.x * hand >= -0.15
+	var where := "  ·  EDGE" if hit.off > 0.8 else ("  ·  SWEET SPOT" if hit.off < 0.3 and tq < 0.3 else "")
+	tip(kind + where, Color(1.0, 0.75, 0.4) if hit.off > 0.8 else (Color(0.5, 1.0, 0.6) if where != "" else UI.TEXT))
+	var tx := clampf(bp.x * 0.35 + tan(ang) * 1.1, -P.HALF_W - 0.2, P.HALF_W + 0.2)
+	bat_fh = bp.x * hand >= -0.15
 	my_kind = kind.to_lower()
 	var sh: Dictionary = solver.strike({
 		p = bp, v_in = ball.vel, w_in = ball.spin, target = Vector3(tx, P.TABLE_Y, -depth),
-		a = a, b_up = b, b_side = swipe_curve * 6.0, rub = myrub, read = read,
-		off = clampf(maxf(0.0 if assist else off_m / 0.45, tq * 0.5), 0.0, 1.0),
-		err = P_ERR * bc * (0.6 + ball.vel.length() / 14.0 + a / 12.0 + 1.2 * tq + (0.0 if assist else off_m * 0.7)),
+		a = a, b_up = b, b_side = swipe_curve * 6.0 if swung else 0.0, rub = myrub, read = read,
+		off = hit.off, radial = hit.radial,
+		err = P_ERR * bc * (0.6 + ball.vel.length() / 14.0 + a / 12.0 + 1.2 * tq + hit.off * 0.5),
 	}, rng)
 	var res: Dictionary = ref.on_hit(0)
 	_strike(0, sh.vel, sh.spin, my_kind)
@@ -710,8 +719,10 @@ func _update_swipe() -> void:
 				swipe_curve = clampf(early.normalized().cross(late.normalized()) * 1.6, -1.0, 1.0)
 		swipe_t = now
 
-# Runs every rendered frame. The bat leads the finger slightly so it never feels late.
+# Runs every physics step: the bat is a real object that follows the finger (leading it slightly),
+# with its velocity taken from its own movement. Assist gently pulls it toward the ball's path.
 func _update_bat(dt: float) -> void:
+	bat_prev = bat_pos
 	var vs := get_viewport().get_visible_rect().size
 	var tx := bat_pos.x
 	var tz := P.HALF_L + 0.3
@@ -725,16 +736,23 @@ func _update_bat(dt: float) -> void:
 		tx = (fp.x / vs.x - 0.5) * 2.3
 		tz = P.HALF_L - 0.2 + clampf((fp.y / vs.y - 0.5) / 0.45, 0.0, 1.0) * 0.9
 	var incoming := state == S_RALLY and ref.hitter == 1
-	if incoming and DB.opt("assist") and assist_on:
-		tx = assist_x + hand * 0.02
+	if incoming and assist_on and assist_lv > 0:
+		tx = lerpf(tx, assist_x, [0.0, 0.55, 0.9][assist_lv] if touch_id >= 0 else 1.0)
+		if assist_lv == 2 and ref.landed and ball.pos.z > 0.3:
+			tz = lerpf(tz, minf(tz, ball.pos.z + 0.25), 0.5)
+	if autoplay and incoming and ref.landed:
+		tx = ball.pos.x
+		tz = ball.pos.z + (0.3 if now - swipe_t > 0.2 else -0.15)  # test driver: wait behind, then swing through
+	# a finger gives two axes; the bat's height follows the ball
 	var ty := P.TABLE_Y + 0.16
-	if incoming and ball.pos.z > 0.4:
+	if incoming and ball.pos.z > 0.2:
 		ty = clampf(ball.pos.y, P.TABLE_Y - 0.2, P.TABLE_Y + 0.9)
 	bat_pos = bat_pos.lerp(Vector3(clampf(tx, -1.25, 1.25), ty, tz), minf(1.0, dt * 40.0))
 	if state == S_TOSS and toss_side == 0:
 		# serve-specific wind-up: the bat travels along the serve's swing path into the ball
 		var k := 1.0 - toss_t / toss_T
 		bat_pos = toss_p - Vector3(serve_swing.x * hand, serve_swing.y, serve_swing.z) * k * 0.7 + Vector3(0, 0, 0.05)
+	bat_vel = bat_vel.lerp((bat_pos - bat_prev) / dt, minf(1.0, dt * 30.0))
 
 func _unhandled_input(e: InputEvent) -> void:
 	if e is InputEventScreenTouch:
@@ -766,8 +784,6 @@ func _notification(what: int) -> void:
 
 # ---------- visuals ----------
 func _process(dt: float) -> void:
-	if not paused and state != S_DONE:
-		_update_bat(dt)
 	# render between physics ticks so motion is smooth at any frame rate
 	var bp := ball.pos
 	if (state == S_RALLY or state == S_OVER) and hitstop <= 0.0:

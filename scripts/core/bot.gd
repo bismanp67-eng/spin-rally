@@ -1,6 +1,7 @@
 extends RefCounted
 # Bot brain. Works for either side; used by the game and the headless simulation.
 const P := preload("res://scripts/core/physics.gd")
+const Bat := preload("res://scripts/core/bat.gd")
 const REACH := 0.42
 var side := 1
 var sgn := -1.0
@@ -72,7 +73,11 @@ func tick(dt: float, bp: Vector3, bv: Vector3, bw: Vector3, incoming: bool, opp_
 	done = true
 	var off := absf(bp.x - x)
 	goal_x = x * 0.3
-	if off > REACH:
+	# geometric bat: the arm puts the blade as close to the ball as it can reach, then swings through it
+	var n0 := Vector3(0.0, 0.0, -sgn)
+	var c0 := Vector3(clampf(bp.x, x - REACH, x + REACH) + signf(x - bp.x) * minf(off / REACH, 1.0) * 0.6 * Bat.BLADE_R, bp.y, bp.z) - n0 * 0.04
+	var hit := Bat.sweep(bp - bv * dt, bv * dt, c0, n0 * 0.06, n0, Bat.BLADE_R)
+	if hit.is_empty():
 		return {miss = true}
 	var d_in := Vector3(bv.x, 0.0, bv.z).normalized()
 	var top_in := bw.dot(Vector3.UP.cross(d_in))
@@ -131,7 +136,7 @@ func tick(dt: float, bp: Vector3, bv: Vector3, bw: Vector3, incoming: bool, opp_
 	var sh: Dictionary = solver.strike({
 		p = bp, v_in = bv, w_in = bw, target = Vector3(tx, P.TABLE_Y, tz), a = a, b_up = b,
 		b_side = st.side * 4.0 * lvl.spin * rng.randf_range(-1.0, 1.0), rub = rub,
-		read = minf(lvl.spin_read + st.get("read", 0.0), 0.99), off = stretch * 0.6,
+		read = minf(lvl.spin_read + st.get("read", 0.0), 0.99), off = hit.off, radial = hit.radial,
 		err = lvl.place_err * bc * (0.6 + sp_in / 14.0 + stretch * 0.7 + a / 12.0),
 		gross = lvl.mistake * (0.5 + sp_in / 10.0 + stretch),
 	}, rng)

@@ -66,6 +66,7 @@ func _process(_dt: float) -> bool:
 	if g == null:
 		return true
 	g.swipe_used = false
+	g.autoplay = true
 	if (g.state == 0 and g.server == 0 and local > 40) or (g.state == 2 and g.ref.hitter == 1 and g.ref.landed and g.ball.vel.y < 0.3):
 		g.swipe_v = Vector2(randf_range(-300, 300), -randf_range(1300, 2100))
 		g.swipe_t = g.now

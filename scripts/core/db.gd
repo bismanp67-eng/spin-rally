@@ -15,7 +15,7 @@ var save := {}
 func defaults() -> Dictionary:
 	return {
 		settings = {quality = 1, fps = 60, lefty = false, colorblind = false, sens = 1.0, sfx = 0.8, music = 0.5,
-			crowd = 0.7, assist = true, auto_q = true, fp_cam = false, trail = true, vibrate = true, replay = true},
+			crowd = 0.7, assist = true, assist_lv = 1, auto_q = true, fp_cam = false, trail = true, vibrate = true, replay = true},
 		equip = {bat = "allround_classic", table = "classic_blue", arena = "club", ball = "white",
 			fh = "", bh = "", handle = "", shape = 0},
 		stats = {matches = 0, wins = 0, points_won = 0, points_lost = 0, longest_rally = 0, fastest = 0.0,
@@ -40,6 +40,8 @@ func _ready() -> void:
 		if d is Dictionary:
 			_merge(save, d)
 			# saves from v1 have no auto flag: keep an explicit choice, auto-tune the untouched default
+			if not d.get("settings", {}).has("assist_lv"):
+				save.settings.assist_lv = 1 if save.settings.assist else 0
 			if not d.get("settings", {}).has("auto_q"):
 				save.settings.auto_q = int(save.settings.quality) == 1
 	if save.settings.auto_q:

@@ -164,6 +164,11 @@ static func impact(v: Vector3, w: Vector3, vb: Vector3, n: Vector3, rub: Diction
 		dvt = dvt.normalized() * lim
 	return [vb + ut + dvt - n * (e * un), w - n.cross(dvt) * (1.5 / P.R)]
 
+# Contact at a point on the blade: off = 0 centre .. 1 rim, radial = unit vector from the blade centre
+# to the contact point. Off-centre hits are weaker and the rim deflects the ball outward.
+static func impact_at(v: Vector3, w: Vector3, vb: Vector3, n: Vector3, rub: Dictionary, off: float, radial: Vector3) -> Array:
+	return impact(v, w, vb, (n + radial * (0.4 * off * off * off)).normalized(), rub, off)
+
 # Find the bat face angle (and, if needed, a different swing speed) that lands the ball on target.
 # a: bat speed along the face normal, b_up / b_side: brushing speed across the face (m/s).
 # w_seen is the incoming spin as the hitter perceives it.
@@ -260,5 +265,5 @@ func strike(o: Dictionary, rng: RandomNumberGenerator) -> Dictionary:
 	if rng.randf() < o.get("gross", 0.0):
 		var axis := n.cross(Vector3.UP).normalized()
 		n = n.rotated(axis, rng.randf_range(0.07, 0.2) * (1.0 if rng.randf() < 0.5 else -1.0))
-	var io := impact(o.v_in, w_in, sw.vb, n, o.rub, o.get("off", 0.0))
+	var io := impact_at(o.v_in, w_in, sw.vb, n, o.rub, o.get("off", 0.0), o.get("radial", Vector3.ZERO))
 	return {vel = io[0], spin = io[1], n = n, vb = sw.vb}

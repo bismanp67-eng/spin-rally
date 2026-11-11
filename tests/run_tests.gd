@@ -4,6 +4,7 @@ const Rules := preload("res://scripts/core/rules.gd")
 const Rally := preload("res://scripts/core/rally.gd")
 const Shot := preload("res://scripts/core/shot.gd")
 const P := preload("res://scripts/core/physics.gd")
+const Bat := preload("res://scripts/core/bat.gd")
 var fails := 0
 
 func ok(c: bool, name: String) -> void:
@@ -157,6 +158,33 @@ func _init() -> void:
 		for ev in b.events:
 			net_hit = net_hit or ev.t == "net"
 	ok(net_hit and b.pos.z > 0.0, "35 m/s ball is stopped by the net")
+	# --- geometric bat ---
+	var fn := Vector3(0, 0, -1)
+	ok(Bat.sweep(Vector3(0.2, 1.0, 1.0), Vector3(0, 0, 0.05), Vector3(0, 1.0, 1.03), Vector3.ZERO, fn, Bat.BLADE_R).is_empty(), "ball passes the bat untouched when out of reach")
+	ok(not Bat.sweep(Vector3(0.03, 1.0, 1.0), Vector3(0, 0, 0.05), Vector3(0, 1.0, 1.04), Vector3.ZERO, fn, Bat.BLADE_R).is_empty(), "ball inside the blade area is hit")
+	var missed := 0
+	for i in 400:
+		# ball at 15 m/s and bat swinging at 20 m/s toward each other: 35 m/s closing speed
+		var gap0 := rngt.randf_range(0.03, 0.6)
+		var bpos := Vector3(rngt.randf_range(-0.05, 0.05), 1.0, 1.0)
+		var cpos := Vector3(0, 1.0, 1.0 + gap0)
+		var touched := false
+		for j in 12:
+			var bd := Vector3(0, 0, 15.0) * P.DT
+			var cd := Vector3(0, 0, -20.0) * P.DT
+			if not Bat.sweep(bpos, bd, cpos, cd, fn, Bat.BLADE_R).is_empty():
+				touched = true
+				break
+			bpos += bd
+			cpos += cd
+		if not touched:
+			missed += 1
+	ok(missed == 0, "fast swing at 35 m/s closing speed never tunnels (%d misses)" % missed)
+	var centre: Array = Shot.impact_at(bv, Vector3.ZERO, sw.vb, sw.n, rub, 0.0, Vector3.ZERO)
+	var edge: Array = Shot.impact_at(bv, Vector3.ZERO, sw.vb, sw.n, rub, 0.95, Vector3(1, 0, 0))
+	var edge_fl := sh.fly(bp, edge[0], edge[1])
+	ok(edge[0].length() < centre[0].length() * 0.9, "edge contact gives a weaker return (%.1f vs %.1f m/s)" % [edge[0].length(), centre[0].length()])
+	ok((edge_fl.land - tg).length() > (clean.land - tg).length() + 0.15, "edge contact is less accurate (%.2f m off target)" % (edge_fl.land - tg).length())
 	# --- solver ---
 	var p1 := Vector3(0.2, 1.0, 1.5)
 	for spec in [[9.0, 300.0, 0.0], [5.0, -280.0, 140.0], [13.0, 100.0, -200.0]]:

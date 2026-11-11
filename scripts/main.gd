@@ -498,7 +498,9 @@ func scr_settings() -> void:
 	choices([30, 60, 120], [30, 60, 120].find(int(st.fps)), func(i):
 		st.fps = [30, 60, 120][i]
 		Engine.max_fps = int(st.fps))
-	for t in [["assist", "Assist (auto-move to the ball)"], ["lefty", "Left-handed mode"], ["colorblind", "Colorblind-friendly ball"],
+	add(UI.label("Assist (Off = pure physics: you must really meet the ball)", 24, UI.DIM))
+	choices(["Off", "Light", "Strong"], int(st.assist_lv), func(i): st.assist_lv = i)
+	for t in [["lefty", "Left-handed mode"], ["colorblind", "Colorblind-friendly ball"],
 			["fp_cam", "First-person camera"], ["trail", "Ball trail"], ["replay", "Slow-motion replays"], ["vibrate", "Vibration"]]:
 		var key: String = t[0]
 		add(UI.button("%s:  %s" % [t[1], "ON" if st[key] else "OFF"], func():

@@ -22,3 +22,4 @@
 - Old saves: a quality setting left at the old default (Medium) is switched to auto-detect; an explicit Low or High choice is kept.
 - Spin misreads are scaled (READ_K in `scripts/core/shot.gd`) because the true physical sensitivity made flat drives unplayable.
 - Screenshots were reviewed with software Vulkan on the Mobile renderer; frame rate on a phone is still unmeasured, so auto quality lowers the render scale if fps sags.
+- v2.1: the bat is geometric. A finger gives two axes (left-right, forward-back), so bat height follows the ball in every assist mode; Assist Off removes magnetism and uses the true blade size. The face angle is still solved from the stroke and your spin read at the moment of contact.
