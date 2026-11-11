@@ -5,6 +5,8 @@ env:
 jobs:
   apk:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     container:
       image: barichello/godot-ci:4.7.2
     steps:
@@ -34,3 +36,10 @@ jobs:
         with:
           name: SpinRally-apk
           path: build/SpinRally.apk
+      - name: Publish direct download
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: Spin Rally (latest build)
+          body: Tap SpinRally.apk below to download, then open it to install.
+          files: build/SpinRally.apk
