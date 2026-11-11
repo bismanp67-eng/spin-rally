@@ -297,7 +297,7 @@ func _strike(side: int, vel: Vector3, spin: Vector3, kind: String = "") -> void:
 		shake = 0.015 + 0.04 * power
 	if side == 0:
 		if DB.opt("vibrate"):
-			Input.vibrate_handheld(int(lerpf(10.0, 45.0, power)), lerpf(0.35, 1.0, power))
+			Input.vibrate_handheld(int(lerpf(10.0, 45.0, power)))  # duration only: amplitude control is not safe on every device
 		bat_swing = 1.0
 		cur = {speed = speed, top = top, side = absf(spin.y), landed = false}
 		DB.save.stats.fastest = maxf(DB.save.stats.fastest, speed * 3.6)
@@ -885,10 +885,6 @@ func _process(dt: float) -> void:
 	cam.v_offset = randf_range(-1.0, 1.0) * shake
 	shake = lerpf(shake, 0.0, minf(1.0, dt * 10.0))
 	cam.fov = lerpf(cam.fov, (54.0 if replay else 46.0) + shake * 70.0, minf(1.0, dt * 10.0))
-	fps_t += dt
-	if fps_t > 3.0:
-		fps_t = 0.0
-		DB.adapt_quality(get_viewport())
 	if tip_t > 0.0:
 		tip_t -= dt
 		tip_l.modulate.a = clampf(tip_t * 3.0, 0.0, 1.0)

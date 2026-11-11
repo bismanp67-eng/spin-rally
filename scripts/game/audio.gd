@@ -119,6 +119,7 @@ func _crowd(dur: float, level: float) -> AudioStreamWAV:
 	return _wav(d)
 
 func _make_music() -> void:
+	var trng := RandomNumberGenerator.new()  # own generator: this runs on a worker thread
 	# 16-bar loop: warm pad, bass, plucked arpeggio, soft hats and kick.
 	var bpm := 108.0
 	var beat := 60.0 / bpm
@@ -142,9 +143,9 @@ func _make_music() -> void:
 		var bt := fmod(b, 1.0) * beat
 		v += sin(TAU * ch[0] * 0.5 * t) * exp(-3.5 * bt) * 0.24
 		v += sin(TAU * (48.0 + 70.0 * exp(-30.0 * bt)) * bt) * exp(-9.0 * bt) * (0.3 if int(b) % 2 == 0 else 0.0)
-		lp += (randf_range(-1.0, 1.0) - lp) * 0.7
+		lp += (trng.randf_range(-1.0, 1.0) - lp) * 0.7
 		if eighth % 2 == 1:
-			v += (randf_range(-1.0, 1.0) - lp) * exp(-70.0 * nt) * 0.07
+			v += (trng.randf_range(-1.0, 1.0) - lp) * exp(-70.0 * nt) * 0.07
 		d.encode_s16(i * 2, int(clampf(v, -1.0, 1.0) * 22000.0))
 	call_deferred("_music_ready", d)
 

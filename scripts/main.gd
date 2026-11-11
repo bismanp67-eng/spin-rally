@@ -274,6 +274,9 @@ func scr_home() -> void:
 	add(UI.button("How to Play", start_tutorial))
 
 func start_tutorial() -> void:
+	# mark it seen straight away: if anything goes wrong mid-tutorial, the next launch opens the menu
+	DB.save.tutorial_done = true
+	DB.write()
 	var mk := func(text: String, mach: Dictionary, goal: Dictionary) -> Dictionary:
 		return {feed = "machine", text = text, machine = mach, goal = goal}
 	var easy := {speed = 0.15, interval = 1.4}
