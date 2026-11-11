@@ -3,6 +3,7 @@ extends Node
 const SAVE_PATH := "user://save.json"
 const ALIVE_PATH := "user://alive.flag"
 var crashed_last_time := false
+var crash_report := ""
 const World := preload("res://scripts/game/world.gd")
 var bats: Array
 var tables: Array
@@ -50,6 +51,7 @@ func _ready() -> void:
 	# means the last session died mid-play, so step the graphics down one level and stay there.
 	if FileAccess.file_exists(ALIVE_PATH):
 		crashed_last_time = true
+		crash_report = _last_log()
 		var prev: int = detect_quality() if save.settings.auto_q else int(save.settings.quality)
 		save.settings.quality = maxi(prev - 1, 0)
 		save.settings.auto_q = false
@@ -57,6 +59,25 @@ func _ready() -> void:
 	elif save.settings.auto_q:
 		save.settings.quality = detect_quality()
 	_alive(true)
+
+# Breadcrumb in the log file, so a crash report shows the last thing the game did.
+func crumb(t: String) -> void:
+	print("CRUMB %d %s" % [Time.get_ticks_msec(), t])
+
+# Tail of the previous session's log (the engine rotates logs at startup) plus device details.
+func _last_log() -> String:
+	var newest := ""
+	var dir := DirAccess.open("user://logs")
+	if dir:
+		for f in dir.get_files():
+			if f != "godot.log" and f.ends_with(".log") and f > newest:
+				newest = f
+	var tail := "(no log found)"
+	if newest != "":
+		var lines := FileAccess.get_file_as_string("user://logs/" + newest).split("\n")
+		tail = "\n".join(lines.slice(maxi(lines.size() - 45, 0)))
+	return "SPIN RALLY CRASH REPORT\n%s | Android %s | %s | %s | cores %d | quality %d\n%s" % [OS.get_model_name(), OS.get_version(),
+		RenderingServer.get_video_adapter_name(), RenderingServer.get_video_adapter_api_version(), OS.get_processor_count(), int(save.settings.quality), tail]
 
 func _alive(on: bool) -> void:
 	if on:

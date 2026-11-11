@@ -258,7 +258,17 @@ func scr_home() -> void:
 	title_l.text = "SPIN RALLY"
 	add(UI.label("OFFLINE TABLE TENNIS  ·  EVERYTHING UNLOCKED", 20, UI.ACCENT))
 	if DB.crashed_last_time:
-		add(UI.label("The game closed unexpectedly last time, so graphics quality was lowered to %s. You can change it in Settings." % ["Low", "Medium", "High", "Ultra"][int(DB.opt("quality"))], 22, UI.DIM))
+		var cp := UI.panel(Color(0.3, 0.08, 0.06, 0.9))
+		var cv := UI.vbox(8)
+		cp.add_child(cv)
+		cv.add_child(UI.label("The game closed unexpectedly last time.", 24))
+		cv.add_child(UI.label("Tap the button, then paste the report into the chat so it can be fixed.", 20, UI.DIM))
+		var cb := UI.button("Copy crash report", func(): pass, UI.ACCENT, 26, 72)
+		cb.pressed.connect(func():
+			DisplayServer.clipboard_set(DB.crash_report)
+			cb.text = "Copied - now paste it in the chat")
+		cv.add_child(cb)
+		add(cp)
 	add(UI.button("Quick Match", func(): go(scr_quick), UI.ACCENT, 36, 110))
 	for e in [["Tournament", scr_tournament], ["Ladder", scr_ladder], ["Challenges", scr_challenges]]:
 		var scr: Callable = e[1]

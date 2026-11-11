@@ -7,6 +7,7 @@ run/main_scene="res://main.tscn"
 config/features=PackedStringArray("4.7", "Mobile")
 config/icon="res://icon.svg"
 config/quit_on_go_back=false
+run/flush_stdout_on_print=true
 boot_splash/bg_color=Color(0.05, 0.07, 0.12, 1)
 boot_splash/show_image=false
 
@@ -14,6 +15,11 @@ boot_splash/show_image=false
 
 DB="*res://scripts/core/db.gd"
 Sfx="*res://scripts/game/audio.gd"
+
+[debug]
+
+file_logging/enable_file_logging=true
+file_logging/max_log_files=4
 
 [display]
 

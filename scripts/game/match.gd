@@ -81,6 +81,8 @@ var special_hit := -1
 var rally_retrieve := false
 var since_replay := 3
 var last_winner := 0
+var crumb_touch := false
+var crumb_frames := 0
 var shake := 0.0
 var tick_i := 0
 var myrub := {}
@@ -124,6 +126,7 @@ var sb: PanelContainer
 var sb_cells: Array = []
 
 func _ready() -> void:
+	DB.crumb("match ready begin " + str(cfg.steps[0].feed))
 	rng.randomize()
 	steps = cfg.steps
 	mybat = DB.my_bat()
@@ -140,6 +143,7 @@ func _ready() -> void:
 	arena_n = World.arena(arena_def)
 	add_child(arena_n)
 	crowd_mat = arena_n.get_meta("crowd") if arena_n.has_meta("crowd") else null
+	DB.crumb("arena built")
 	add_child(World.table(table_def))
 	cam = Camera3D.new()
 	cam.keep_aspect = Camera3D.KEEP_WIDTH
@@ -190,9 +194,12 @@ func _ready() -> void:
 	puff.mesh = pm
 	puff.material_override = World.mat(Color(1, 0.97, 0.8), 0.5, 0.0, 2.5)
 	add_child(puff)
+	DB.crumb("world built")
 	_build_hud()
+	DB.crumb("hud built")
 	Sfx.ambience(arena_def.crowd)
 	start_step(0)
+	DB.crumb("match ready end")
 
 # ---------- flow ----------
 func start_step(i: int) -> void:
@@ -269,6 +276,7 @@ func begin_toss(side: int, p: Vector3, sv: Dictionary, strike: Dictionary) -> vo
 	toss_T = 2.0 * toss_v0 / P.G
 	toss_t = 0.0
 	toss_strike = strike
+	DB.crumb("toss side %d %s" % [side, sv.id])
 	ball.reset(p, Vector3.UP * toss_v0, Vector3.ZERO)
 	serve_swing = Vector3(sv.swing[0], sv.swing[1], sv.swing[2])
 	state = S_TOSS
@@ -284,6 +292,7 @@ func _strike(side: int, vel: Vector3, spin: Vector3, kind: String = "") -> void:
 	var top := spin.dot(Vector3.UP.cross(d))
 	var speed := vel.length()
 	var power := clampf((speed - 8.0) / 14.0, 0.0, 1.0)
+	DB.crumb("strike side %d %s v=%s w=%s p=%s" % [side, kind, vel, spin, ball.pos])
 	Sfx.hit(speed, spin.length())
 	Sfx.tension(ref.hits)
 	if ref.hits > 1:
@@ -430,6 +439,7 @@ func _on_ball_event(ev: Dictionary) -> void:
 		_end_rally(res)
 
 func _end_rally(res: Dictionary) -> void:
+	DB.crumb("end rally %s" % [res])
 	state = S_OVER
 	state_t = 0.0
 	serve_b.visible = false
@@ -612,6 +622,7 @@ func _player_serve() -> void:
 # The ball has physically met the bat (hit = contact from Bat.sweep). The stroke comes from the
 # finger's recent movement; with no swing the bat simply blocks.
 func _player_contact(hit: Dictionary) -> void:
+	DB.crumb("contact %s swipe=%s bat=%s vel=%s" % [hit, swipe_v, bat_pos, bat_vel])
 	var bp := ball.pos
 	if not hit.front or bp.y < 0.3:
 		return
@@ -693,6 +704,7 @@ func _player_contact(hit: Dictionary) -> void:
 		_end_rally(res)
 
 func _machine_launch() -> void:
+	DB.crumb("machine launch")
 	var m: Dictionary = step.machine
 	var place: float = m.get("place", 0.0)
 	if m.get("random", false):
@@ -784,6 +796,9 @@ func _unhandled_input(e: InputEvent) -> void:
 			if state == S_REPLAY:
 				_end_replay()
 				return
+			if not crumb_touch:
+				crumb_touch = true
+				DB.crumb("first touch %s" % e.position)
 			if touch_id < 0 and not serve_b.get_global_rect().has_point(e.position) and not pause_b.get_global_rect().has_point(e.position):
 				touch_id = e.index
 				touch_pos = e.position
@@ -806,6 +821,9 @@ func _notification(what: int) -> void:
 
 # ---------- visuals ----------
 func _process(dt: float) -> void:
+	crumb_frames += 1
+	if crumb_frames == 1 or crumb_frames == 3 or crumb_frames % 120 == 0:
+		DB.crumb("frame %d state %d fps %d" % [crumb_frames, state, Engine.get_frames_per_second()])
 	# render between physics ticks so motion is smooth at any frame rate
 	var bp := ball.pos
 	if (state == S_RALLY or state == S_OVER) and hitstop <= 0.0:
