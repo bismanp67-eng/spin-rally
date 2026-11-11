@@ -49,13 +49,16 @@ func _process(_dt: float) -> bool:
 	if phase == 0:
 		if local == 45:
 			snap("1_menu")
+		if local == 50:
 			main.eq_tab = "bat"
 			main.go(main.scr_equipment)
-		if local == 80:
+		if local == 85:
 			snap("2_equipment")
-			main.go(main.scr_quick)
-		if local == 110:
-			snap("3_quick")
+		if local == 90:
+			main.go(main.scr_settings)
+		if local == 120:
+			snap("3_settings")
+		if local == 125:
 			phase = 1
 			local = 0
 			main.play({steps = [{feed = "match", match = {bot = root.get_node("DB").bots[7], level = 3, best_of = 1, start = [8, 7]}}]}, main.nothing)

@@ -10,3 +10,15 @@
 - Tournament matches between bots are resolved by rating, not simulated ball by ball.
 - Balls and arenas are cosmetic; tables change bounce/friction slightly (glass and ice are slicker, concrete is deader).
 - Built and tested headless plus software-rendered screenshots only; it has never run on a physical phone, so touch feel and frame rate are unverified.
+
+## v2.0 decisions
+- Signing: CI copied the keystore earlier builds were signed with into `ci/debug.keystore`; it is a debug key with the standard password, for personal use only.
+- The finger does not drive a geometric bat collider. A swipe inside the hitting window triggers a swing; the contact itself is the physical impulse model. Swept collision covers table, net, posts and floor.
+- Serves and the ball machine still set launch velocity and spin directly from data; only rally strokes go through the bat impulse model.
+- Sidespin is given a tilted axis (some corkscrew) so it kicks sideways off the bounce; a pure vertical axis does not.
+- The Mobile renderer has no screen-space ambient occlusion, so contact shadows are soft blobs under the table, players and ball.
+- Texture size follows quality: 2048 px on Ultra, 1024 on High, 512 on Medium, flat colours on Low.
+- The ball's visible rotation is slowed to a tenth of the real rate so the logo is readable instead of strobing.
+- Old saves: a quality setting left at the old default (Medium) is switched to auto-detect; an explicit Low or High choice is kept.
+- Spin misreads are scaled (READ_K in `scripts/core/shot.gd`) because the true physical sensitivity made flat drives unplayable.
+- Screenshots were reviewed with software Vulkan on the Mobile renderer; frame rate on a phone is still unmeasured, so auto quality lowers the render scale if fps sags.

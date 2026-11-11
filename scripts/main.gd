@@ -2,6 +2,7 @@ extends Node
 # App shell: all menu screens, built in code, plus launching play sessions.
 const UI := preload("res://scripts/ui/ui.gd")
 const Match := preload("res://scripts/game/match.gd")
+const World := preload("res://scripts/game/world.gd")
 const SWATCHES := ["e23b3b", "111111", "1f6feb", "2ea043", "f2c94c", "bb6bd9", "ff7a00", "ffffff", "c89a5b", "6b4423"]
 const SHAPES := ["Straight", "Flared", "Penhold"]
 var layer: CanvasLayer
@@ -12,29 +13,54 @@ var stack: Array = []
 var game: Node = null
 var tour := {}
 var eq_tab := "bat"
+var bg3d: Node3D
+var bg_cam: Camera3D
+var preview_item: Node3D
+var orbit := 0.6
+var anim := true
+
+const BLUR := "shader_type canvas_item;
+uniform sampler2D screen : hint_screen_texture, filter_linear_mipmap;
+void fragment() {
+	vec3 c = textureLod(screen, SCREEN_UV, 3.2).rgb;
+	float v = smoothstep(0.0, 1.0, UV.y);
+	COLOR = vec4(mix(c, vec3(0.03, 0.045, 0.085), 0.34 + 0.26 * v), 1.0);
+}"
 
 func _ready() -> void:
 	Engine.max_fps = int(DB.opt("fps"))
+	get_tree().root.theme = UI.theme()
+	DB.apply_quality(get_viewport())
 	layer = CanvasLayer.new()
 	add_child(layer)
+	# frosted glass: the live 3D scene behind the menu, blurred and tinted
 	var bg := ColorRect.new()
-	bg.color = UI.BG
 	bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if World.Q >= 1:
+		var sm := ShaderMaterial.new()
+		var sh := Shader.new()
+		sh.code = BLUR
+		sm.shader = sh
+		bg.material = sm
+	else:
+		bg.color = Color(UI.BG.r, UI.BG.g, UI.BG.b, 0.72)
 	layer.add_child(bg)
 	var m := MarginContainer.new()
 	m.set_anchors_preset(Control.PRESET_FULL_RECT)
 	for side in ["left", "right", "bottom"]:
-		m.add_theme_constant_override("margin_" + side, 28)
-	m.add_theme_constant_override("margin_top", 64)
+		m.add_theme_constant_override("margin_" + side, UI.S3)
+	m.add_theme_constant_override("margin_top", int(UI.safe_top(bg)) + UI.S2)
 	layer.add_child(m)
-	var v := UI.vbox(16)
+	var v := UI.vbox(UI.S2)
 	m.add_child(v)
 	var head := UI.hbox(12)
 	v.add_child(head)
-	back_b = UI.button("<", back, UI.PANEL, 34, 76)
-	back_b.custom_minimum_size.x = 84
+	back_b = UI.button("‹", back, UI.PANEL, 44, 80)
+	back_b.custom_minimum_size.x = 88
 	head.add_child(back_b)
-	title_l = UI.label("", 44)
+	title_l = UI.label("", 46)
+	title_l.autowrap_mode = TextServer.AUTOWRAP_OFF
 	head.add_child(UI.expand(title_l))
 	var sc := ScrollContainer.new()
 	sc.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -42,21 +68,51 @@ func _ready() -> void:
 	v.add_child(sc)
 	box = UI.vbox(14)
 	sc.add_child(UI.expand(box))
+	_build_bg()
 	go(scr_home)
 	if not DB.save.tutorial_done:
 		start_tutorial()
 
+# Live 3D backdrop: the current arena and table with a slowly orbiting camera.
+func _build_bg() -> void:
+	bg3d = Node3D.new()
+	add_child(bg3d)
+	bg3d.add_child(World.arena(DB.find(DB.arenas, DB.save.equip.arena)))
+	bg3d.add_child(World.table(DB.find(DB.tables, DB.save.equip.table)))
+	var b := World.bat(DB.my_bat())
+	b.position = Vector3(0.3, 0.775, 0.9)
+	b.rotation = Vector3(PI / 2, 0.5, 0)
+	bg3d.add_child(b)
+	var ball := World.game_ball(DB.find(DB.balls, DB.save.equip.ball), false, 1.0)
+	ball.position = Vector3(0.12, 0.78, 0.82)
+	bg3d.add_child(ball)
+	bg_cam = Camera3D.new()
+	bg_cam.keep_aspect = Camera3D.KEEP_WIDTH
+	bg_cam.fov = 44.0
+	bg3d.add_child(bg_cam)
+
+func _process(dt: float) -> void:
+	orbit += dt * 0.12
+	if bg_cam and is_instance_valid(bg_cam):
+		bg_cam.position = Vector3(sin(orbit) * 4.3, 1.9 + sin(orbit * 0.7) * 0.25, cos(orbit) * 4.3)
+		bg_cam.look_at(Vector3(0, 0.95, 0))
+	if preview_item and is_instance_valid(preview_item):
+		preview_item.rotation.y += dt * 0.9
+
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_GO_BACK_REQUEST and game == null:
+		Sfx.play("back")
 		back()
 
 func go(screen: Callable) -> void:
 	stack.append(screen)
+	anim = true
 	render()
 
 func back() -> void:
 	if stack.size() > 1:
 		stack.pop_back()
+		anim = true
 		render()
 	else:
 		DB.write()
@@ -66,24 +122,93 @@ func render() -> void:
 	for c in box.get_children():
 		box.remove_child(c)
 		c.queue_free()
+	preview_item = null
 	back_b.visible = stack.size() > 1
 	stack[-1].call()
+	if anim:
+		# screen transition: content fades and rises in, staggered
+		anim = false
+		Sfx.play("whoosh", 1.0, 0.5)
+		var i := 0
+		for c in box.get_children():
+			UI.enter(c, i)
+			i += 1
+		title_l.modulate.a = 0.0
+		title_l.create_tween().tween_property(title_l, "modulate:a", 1.0, 0.25)
 
 func play(cfg: Dictionary, on_done: Callable) -> void:
 	layer.visible = false
+	if bg3d:
+		bg3d.queue_free()
+		bg3d = null
+		bg_cam = null
 	game = Match.new()
 	game.cfg = cfg.duplicate(true)
 	add_child(game)
+	Sfx.set_mode("match")
 	game.finished.connect(func(res: Dictionary):
 		game.queue_free()
 		game = null
-		layer.visible = true
 		if res.get("retry", false):
 			play(cfg, on_done)
 			return
+		Sfx.set_mode("menu")
+		layer.visible = true
+		DB.apply_quality(get_viewport())
+		_build_bg()
 		on_done.call(res)
 		DB.write()
+		anim = true
 		render())
+
+# A small rotating 3D preview of a piece of equipment, rendered in its own world.
+func preview(kind: String, def: Dictionary) -> void:
+	var c := SubViewportContainer.new()
+	c.stretch = true
+	c.custom_minimum_size = Vector2(0, 330)
+	c.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var vp := SubViewport.new()
+	vp.own_world_3d = true
+	vp.transparent_bg = true
+	vp.msaa_3d = Viewport.MSAA_4X if World.Q >= 2 else Viewport.MSAA_2X
+	c.add_child(vp)
+	var env := Environment.new()
+	env.background_mode = Environment.BG_COLOR
+	env.background_color = Color(0, 0, 0, 0)
+	env.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
+	env.ambient_light_color = Color(0.75, 0.8, 0.95)
+	env.ambient_light_energy = 0.7
+	env.tonemap_mode = Environment.TONE_MAPPER_FILMIC
+	var we := WorldEnvironment.new()
+	we.environment = env
+	vp.add_child(we)
+	var sun := DirectionalLight3D.new()
+	sun.rotation = Vector3(-0.8, 0.6, 0)
+	sun.light_energy = 1.4
+	vp.add_child(sun)
+	var cam := Camera3D.new()
+	cam.fov = 30.0
+	vp.add_child(cam)
+	var item: Node3D
+	match kind:
+		"bat":
+			item = World.bat(def)
+			item.position.y = 0.045
+			cam.position = Vector3(0, 0.12, 0.62)
+		"ball":
+			item = World.game_ball(def, false, 1.0)
+			cam.position = Vector3(0, 0.03, 0.2)
+		_:
+			item = World.table(def)
+			cam.position = Vector3(0, 2.3, 5.6)
+	var pivot := Node3D.new()
+	pivot.add_child(item)
+	vp.add_child(pivot)
+	cam.look_at_from_position(cam.position, Vector3(0, 0.5 if kind == "table" else 0.0, 0))
+	preview_item = pivot
+	var p := UI.panel(Color(0.05, 0.07, 0.12, 0.55))
+	p.add_child(c)
+	add(p)
 
 func nothing(_res: Dictionary) -> void:
 	pass
@@ -130,7 +255,8 @@ func match_step(bot_id: String, level: int, best_of: int) -> Dictionary:
 # ---------- screens ----------
 func scr_home() -> void:
 	title_l.text = "SPIN RALLY"
-	add(UI.label("Offline table tennis. Everything unlocked.", 24, UI.DIM))
+	title_l.text = "SPIN RALLY"
+	add(UI.label("OFFLINE TABLE TENNIS  ·  EVERYTHING UNLOCKED", 20, UI.ACCENT))
 	add(UI.button("Quick Match", func(): go(scr_quick), UI.ACCENT, 36, 110))
 	for e in [["Tournament", scr_tournament], ["Ladder", scr_ladder], ["Challenges", scr_challenges]]:
 		var scr: Callable = e[1]
@@ -184,23 +310,23 @@ func scr_ladder() -> void:
 	for b in DB.bots:
 		var id: String = b.id
 		var done: bool = DB.save.ladder.get(id, false)
-		add(UI.button("%s %s  ·  %s  ·  %s" % ["[x]" if done else "[ ]", b.name, b.style, DB.levels[int(b.level)].name], func():
+		add(UI.button("%s%s  ·  %s  ·  %s" % ["DONE  ·  " if done else "", b.name, b.style, DB.levels[int(b.level)].name], func():
 			play({steps = [match_step(id, int(b.level), 3)]}, func(res):
 				if res.get("won", false):
-					DB.save.ladder[id] = true), Color(0.1, 0.3, 0.2) if done else UI.PANEL, 24, 78))
+					DB.save.ladder[id] = true), UI.GOOD if done else UI.PANEL, 24, 78))
 
 func scr_challenges() -> void:
 	title_l.text = "Trick Shots"
 	for c in DB.challenges:
 		var id: String = c.id
 		var done: bool = DB.save.challenges.get(id, false)
-		add(UI.button("%s %s\n%s" % ["[x]" if done else "[ ]", c.name, c.text], func():
+		add(UI.button("%s%s\n%s" % ["DONE  ·  " if done else "", c.name, c.text], func():
 			var st: Dictionary = c.duplicate(true)
 			if st.has("match"):
 				st.match.bot = DB.find(DB.bots, st.match.bot)
 			play({steps = [st]}, func(res):
 				if res.get("passed", false):
-					DB.save.challenges[id] = true), Color(0.1, 0.3, 0.2) if done else UI.PANEL, 22, 104))
+					DB.save.challenges[id] = true), UI.GOOD if done else UI.PANEL, 22, 104))
 
 func scr_tournament() -> void:
 	title_l.text = "Tournament"
@@ -284,6 +410,8 @@ func scr_equipment() -> void:
 	choices(["Bat", "Table", "Arena", "Ball"], tabs.find(eq_tab), func(i): eq_tab = tabs[i], 4)
 	var eq: Dictionary = DB.save.equip
 	var list: Array = {"bat": DB.bats, "table": DB.tables, "arena": DB.arenas, "ball": DB.balls}[eq_tab]
+	if eq_tab != "arena":
+		preview(eq_tab, DB.my_bat() if eq_tab == "bat" else DB.find(list, eq[eq_tab]))
 	if eq_tab == "bat":
 		var b := DB.my_bat()
 		var p := UI.panel()
@@ -344,6 +472,8 @@ func scr_stats() -> void:
 		var h := UI.hbox()
 		h.add_child(UI.expand(UI.label(r[0], 28, UI.DIM)))
 		var vl := UI.label(str(r[1]), 28)
+		if r[1] is int:
+			UI.count_up(vl, float(r[1]), "%d")
 		vl.autowrap_mode = TextServer.AUTOWRAP_OFF
 		h.add_child(vl)
 		add(h)
@@ -363,7 +493,7 @@ func scr_settings() -> void:
 		st.auto_q = not st.auto_q
 		if st.auto_q:
 			st.quality = DB.detect_quality()
-		render(), Color(0.1, 0.3, 0.2) if st.auto_q else UI.PANEL, 26, 72))
+		render(), UI.GOOD if st.auto_q else UI.PANEL, 26, 72))
 	add(UI.label("FPS cap", 24, UI.DIM))
 	choices([30, 60, 120], [30, 60, 120].find(int(st.fps)), func(i):
 		st.fps = [30, 60, 120][i]
@@ -373,7 +503,7 @@ func scr_settings() -> void:
 		var key: String = t[0]
 		add(UI.button("%s:  %s" % [t[1], "ON" if st[key] else "OFF"], func():
 			st[key] = not st[key]
-			render(), Color(0.1, 0.3, 0.2) if st[key] else UI.PANEL, 26, 72))
+			render(), UI.GOOD if st[key] else UI.PANEL, 26, 72))
 	for t in [["sens", "Control sensitivity", 0.5, 2.0], ["sfx", "Sound volume", 0.0, 1.0], ["music", "Music volume", 0.0, 1.0], ["crowd", "Crowd volume", 0.0, 1.0]]:
 		var key2: String = t[0]
 		add(UI.label(t[1], 24, UI.DIM))

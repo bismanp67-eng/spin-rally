@@ -515,7 +515,7 @@ static func arena(def: Dictionary) -> Node3D:
 	sun.directional_shadow_mode = DirectionalLight3D.SHADOW_PARALLEL_2_SPLITS if Q == 3 else DirectionalLight3D.SHADOW_ORTHOGONAL
 	sun.directional_shadow_max_distance = 14.0
 	n.add_child(sun)
-	var gloss: float = def.get("gloss", 0.8)
+	var gloss: float = maxf(def.get("gloss", 0.8), 0.5)
 	var floor_m := pbr(col(def.floor), gloss, 0.0, "grain", Vector3.ONE * 0.35, "grain_n", 0.12)
 	if props.has("lines") or def.id == "dojo":
 		floor_m = pbr(col(def.floor), gloss, 0.0, "wood", Vector3(0.5, 0.5, 0.06), "grain_n", 0.3)
@@ -586,7 +586,7 @@ static func arena(def: Dictionary) -> Node3D:
 				for pt in [Vector3(-3.2, 6.2, -3.5), Vector3(3.2, 6.2, -3.5), Vector3(-3.2, 6.2, 3.5), Vector3(3.2, 6.2, 3.5)]:
 					ball(n, 0.2, pt, mat(lc, 0.4, 0.0, 5.0), 12)
 					cyl(n, 0.22, 0.26, 0.3, pt + Vector3(0, 0.12, 0), mat(Color(0.08, 0.08, 0.1), 0.5, 0.6), 14)
-					_light(n, pt, lc, 7.0, 13.0, true)
+					_light(n, pt, lc, 2.6, 13.0, true)
 			"lamp":
 				cyl(n, 0.01, 0.01, 5.0, Vector3(0, 5.4, 0), mat(Color(0.05, 0.05, 0.05)), 6)
 				cyl(n, 0.1, 0.42, 0.25, Vector3(0, 2.95, 0), metal(Color(0.2, 0.3, 0.25), 0.4), 24)

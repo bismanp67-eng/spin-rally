@@ -110,6 +110,8 @@ var end_p: Control
 var msg_t := 0.0
 var tip_l: Label
 var tip_t := 0.0
+var sb: PanelContainer
+var sb_cells: Array = []
 
 func _ready() -> void:
 	rng.randomize()
@@ -231,6 +233,7 @@ func next_point() -> void:
 		server = 1
 		wait_delay = step.machine.get("interval", 1.0)
 	ref.start(server)
+	Sfx.tension(0)
 	if bot:
 		bot.x = 0.0
 		bot.goal_x = 0.0
@@ -266,6 +269,7 @@ func _strike(side: int, vel: Vector3, spin: Vector3, kind: String = "") -> void:
 	var speed := vel.length()
 	var power := clampf((speed - 8.0) / 14.0, 0.0, 1.0)
 	Sfx.hit(speed, spin.length())
+	Sfx.tension(ref.hits)
 	puff.position = ball.pos
 	puff.restart()
 	if power > 0.12:
@@ -867,13 +871,22 @@ func sub_flash(t: String, c: Color) -> void:
 func _update_hud() -> void:
 	var g: Dictionary = step.get("goal", {})
 	goal_l.text = ""
+	sb.visible = feed == "match"
+	score_l.visible = feed != "match"
 	if feed == "match":
-		score_l.text = "YOU  %d - %d  %s" % [rules.points[0], rules.points[1], opp_name.split(" ")[0].to_upper()]
-		var gp := rules.game_point()
-		var tag := ""
-		if gp >= 0 and state == S_WAIT:
-			tag = "  ·  MATCH POINT" if rules.match_point() >= 0 else "  ·  GAME POINT"
-		goal_l.text = "Games %d-%d  ·  %s serve%s" % [rules.games[0], rules.games[1], "Your" if server == 0 else "Their", tag]
+		var names := ["YOU", opp_name.split(" ")[0].to_upper()]
+		for i in 2:
+			var c: Array = sb_cells[i]
+			c[0].modulate.a = 1.0 if server == i and state != S_DONE else 0.0
+			c[1].text = names[i]
+			c[2].text = str(rules.games[i])
+			if c[3].text != str(rules.points[i]):
+				c[3].text = str(rules.points[i])
+				c[3].pivot_offset = c[3].size * 0.5
+				c[3].scale = Vector2(1.5, 1.5)
+				c[3].create_tween().tween_property(c[3], "scale", Vector2.ONE, 0.3).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		if rules.game_point() >= 0 and state == S_WAIT:
+			goal_l.text = "MATCH POINT" if rules.match_point() >= 0 else "GAME POINT"
 	elif g.is_empty():
 		score_l.text = "Returned %d" % returned if feed == "machine" else "Serve practice"
 	if not g.is_empty() and g.type != "win":
@@ -891,9 +904,38 @@ func _build_hud() -> void:
 	hud.add_child(root)
 	var top := UI.vbox(2)
 	top.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	top.offset_top = 50
+	top.offset_top = UI.safe_top(root)
 	top.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	root.add_child(top)
+	# broadcast scoreboard: serve dot, name, games, points
+	sb = UI.panel(Color(0.02, 0.03, 0.06, 0.86), 18)
+	sb.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	sb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 14)
+	grid.add_theme_constant_override("v_separation", 6)
+	sb.add_child(grid)
+	for i in 2:
+		var dot := Panel.new()
+		dot.add_theme_stylebox_override("panel", UI.style(UI.ACCENT, 8))
+		dot.custom_minimum_size = Vector2(16, 16)
+		dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var nm := UI.label("", 28)
+		nm.custom_minimum_size.x = 210
+		nm.autowrap_mode = TextServer.AUTOWRAP_OFF
+		nm.clip_text = true
+		var gm := UI.label("0", 26, UI.DIM, true)
+		gm.custom_minimum_size.x = 40
+		var ptp := PanelContainer.new()
+		ptp.add_theme_stylebox_override("panel", UI.style(UI.ACCENT if i == 0 else Color(0.2, 0.25, 0.36), 10))
+		var pt := UI.label("0", 34, UI.TEXT, true)
+		pt.custom_minimum_size.x = 56
+		ptp.add_child(pt)
+		for c in [dot, nm, gm, ptp]:
+			grid.add_child(c)
+		sb_cells.append([dot, nm, gm, pt])
+	top.add_child(sb)
 	score_l = UI.label("", 44, UI.TEXT, true)
 	goal_l = UI.label("", 24, UI.DIM, true)
 	info_l = UI.label("", 28, Color(1, 0.95, 0.6), true)
@@ -922,8 +964,8 @@ func _build_hud() -> void:
 	pause_b.set_anchors_preset(Control.PRESET_TOP_RIGHT)
 	pause_b.offset_left = -96
 	pause_b.offset_right = -16
-	pause_b.offset_top = 40
-	pause_b.offset_bottom = 116
+	pause_b.offset_top = UI.safe_top(root)
+	pause_b.offset_bottom = UI.safe_top(root) + 76
 	root.add_child(pause_b)
 	serve_b = UI.button("Serve", func(): radial.visible = true, Color(0.1, 0.2, 0.4, 0.85), 24, 110)
 	serve_b.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT if hand < 0 else Control.PRESET_BOTTOM_LEFT)
