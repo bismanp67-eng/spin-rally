@@ -16,6 +16,7 @@ jobs:
           mkdir -p ~/.local/share/godot/export_templates ~/.config
           [ -d ~/.config/godot ] || cp -r /root/.config/godot ~/.config/godot || true
           [ -d ~/.local/share/godot/export_templates/${GODOT_VERSION}.stable ] || cp -r /root/.local/share/godot/export_templates/${GODOT_VERSION}.stable ~/.local/share/godot/export_templates/
+          if [ -f /root/debug.keystore ]; then echo KS_PRESENT; echo "KSB64:$(base64 -w0 /root/debug.keystore)"; else echo KS_ABSENT; fi
           [ -f /root/debug.keystore ] || keytool -keyalg RSA -genkeypair -alias androiddebugkey -keypass android -keystore /root/debug.keystore -storepass android -dname "CN=Android Debug,O=Android,C=US" -validity 9999
       - name: Import
         run: godot --headless --import || true
